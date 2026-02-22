@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>🎾 Clay Court Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       STEP 1 ─ Paste your Firebase config below (from Firebase Console →
+                Project Settings → Your apps → SDK setup & configuration)
+  ════════════════════════════════════════════════════════════════════ -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, push, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // ▼▼▼ REPLACE THIS WITH YOUR OWN CONFIG ▼▼▼
+    const firebaseConfig = {
+      apiKey:            "YOUR_API_KEY",
+      authDomain:        "YOUR_PROJECT.firebaseapp.com",
+      databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId:         "YOUR_PROJECT_ID",
+      storageBucket:     "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId:             "YOUR_APP_ID"
+    };
+    // ▲▲▲ REPLACE THIS WITH YOUR OWN CONFIG ▲▲▲
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // ─── make DB helpers available to the rest of the page ───────────────
+    window._db     = db;
+    window._ref    = ref;
+    window._set    = set;
+    window._push   = push;
+    window._update = update;
+    window._remove = remove;
+    window._onValue = onValue;
+
+    // signal that Firebase is ready
+    window.dispatchEvent(new Event("firebase-ready"));
+  </script>
+
+  <style>
+    /* ── RESET & TOKENS ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --clay:  #C2714F; --clay-d: #8B4513; --clay-l: #E8A87C;
+      --green: #2D5A27; --green-l: #4A7C43; --earth: #8B6914;
+      --cream: #FAF6F0; --sand: #E8DCC8; --white: #fff;
+      --t: #2C1810; --tm: #6B4226; --tl: #9E7B5A;
+      --ok: #2D7D46; --warn: #C17E0A; --bad: #B73535;
+      --sh: 0 2px 10px rgba(44,24,16,.09);
+    }
+    html, body { height: 100%; background: var(--cream); font-family: 'Lato', sans-serif; color: var(--t); }
+    button { font-family: 'Lato', sans-serif; cursor: pointer; border: none; }
+
+    /* ── APP SHELL ───────────────────────────────────────────────────── */
+    #app { max-width: 430px; margin: 0 auto; min-height: 100vh; background: var(--cream); position: relative; }
+
+    /* ── HEADER ─────────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, var(--clay-d) 0%, var(--clay) 60%, var(--clay-l) 100%);
+      padding: 18px 18px 14px; position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 4px 15px rgba(139,69,19,.35);
+    }
+    .h-row  { display: flex; justify-content: space-between; align-items: flex-start; }
+    .h-title { font-family: 'Playfair Display', serif; color: var(--cream); font-size: 21px; font-weight: 700; line-height: 1.1; }
+    .h-sub   { color: rgba(250,246,240,.75); font-size: 11px; margin-top: 2px; letter-spacing: .4px; }
+    .h-badge { background: rgba(250,246,240,.2); border: 1px solid rgba(250,246,240,.35); color: var(--cream); border-radius: 20px; padding: 4px 12px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+
+    /* ── BOTTOM NAV ──────────────────────────────────────────────────── */
+    nav {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 430px; background: var(--white);
+      border-top: 2px solid var(--sand); display: flex; z-index: 200;
+      box-shadow: 0 -4px 20px rgba(44,24,16,.1);
+    }
+    .nb {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 8px 2px 12px; background: none; border: none;
+      color: var(--tl); font-size: 8px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .4px; transition: color .2s;
+    }
+    .nb.active { color: var(--clay); }
+    .ni { font-size: 18px; line-height: 1; }
+
+    /* ── CONTENT AREA ────────────────────────────────────────────────── */
+    .content { padding: 16px 16px 96px; }
+
+    /* ── TYPOGRAPHY ─────────────────────────────────────────────────── */
+    .stitle { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; margin-bottom: 14px; }
+    .sub    { font-size: 12px; color: var(--tl); margin-top: 2px; }
+
+    /* ── CARDS ───────────────────────────────────────────────────────── */
+    .card { background: var(--white); border-radius: 16px; padding: 15px; margin-bottom: 11px; box-shadow: var(--sh); border: 1px solid rgba(232,220,200,.6); }
+    .card.border-red  { border: 1.5px solid #F5C6C6; }
+    .card.border-warn { border: 1.5px solid #FFD699; }
+
+    /* ── GRID HELPERS ────────────────────────────────────────────────── */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── STAT CARDS ─────────────────────────────────────────────────── */
+    .scard { background: var(--white); border-radius: 14px; padding: 14px; box-shadow: var(--sh); border: 1px solid rgba(232,220,200,.6); text-align: center; }
+    .sval  { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; color: var(--clay); }
+    .slbl  { font-size: 11px; color: var(--tl); text-transform: uppercase; letter-spacing: .5px; margin-top: 2px; }
+
+    /* ── BUTTONS ─────────────────────────────────────────────────────── */
+    .btn  { padding: 10px 14px; border-radius: 12px; font-size: 13px; font-weight: 700; transition: all .15s; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+    .btn:active { transform: scale(.97); }
+    .btn.full { width: 100%; margin-top: 9px; }
+    .bp   { background: var(--clay); color: #fff; }
+    .bs   { background: var(--sand); color: var(--t); }
+    .bok  { background: #E8F5E9; color: var(--ok); }
+    .bbad { background: #FDECEA; color: var(--bad); }
+    .bwarn{ background: #FFF3E0; color: var(--warn); }
+    .flex-row { display: flex; gap: 8px; }
+
+    /* ── BADGES ──────────────────────────────────────────────────────── */
+    .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; display: inline-block; }
+    .b-ok   { background: #E8F5E9; color: var(--ok); }
+    .b-warn { background: #FFF3E0; color: var(--warn); }
+    .b-bad  { background: #FDECEA; color: var(--bad); }
+    .b-clay { background: #FAE8DE; color: var(--clay-d); }
+    .b-ph   { background: #FDECEA; color: var(--bad); }
+    .b-pm   { background: #FFF9E6; color: var(--earth); }
+    .b-pl   { background: #E8F5E9; color: var(--ok); }
+
+    /* ── COURT CARD ──────────────────────────────────────────────────── */
+    .court-card { position: relative; overflow: hidden; }
+    .court-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--clay-d), var(--clay), var(--clay-l)); }
+    .crow { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .cname { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; }
+    .m2   { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .metric { background: var(--cream); border-radius: 12px; padding: 10px 12px; }
+    .ml { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--tl); margin-bottom: 4px; }
+    .mv { font-size: 20px; font-weight: 700; font-family: 'Playfair Display', serif; }
+    .ms { font-size: 10px; color: var(--tl); margin-top: 2px; }
+    .hbarbg { background: var(--sand); border-radius: 4px; height: 6px; margin-top: 5px; }
+    .hbar   { height: 6px; border-radius: 4px; }
+    .hok  { color: var(--ok); } .hwarn { color: var(--warn); } .hbad { color: var(--bad); }
+    .wyes { color: var(--ok); } .wno  { color: var(--bad); }
+
+    /* ── MEMBER CARD ─────────────────────────────────────────────────── */
+    .mcard { display: flex; align-items: center; gap: 12px; }
+    .avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--clay-d), var(--clay-l)); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; font-weight: 700; font-family: 'Playfair Display', serif; flex-shrink: 0; }
+    .minfo { flex: 1; min-width: 0; }
+    .mname { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mstatus { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+    /* ── TASK CARD ───────────────────────────────────────────────────── */
+    .trow { display: flex; gap: 12px; align-items: flex-start; }
+    .tdot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+    .tinfo { flex: 1; }
+    .tname { font-weight: 700; font-size: 14px; }
+    .tmeta { display: flex; gap: 8px; margin-top: 6px; align-items: center; flex-wrap: wrap; }
+
+    /* ── BALL RING ───────────────────────────────────────────────────── */
+    .ring-wrap { position: relative; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ring-lbl  { position: absolute; text-align: center; pointer-events: none; }
+    .ring-score { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 700; line-height: 1; }
+    .ring-unit  { font-size: 9px; color: var(--tl); text-transform: uppercase; letter-spacing: .4px; }
+    .ring-track { fill: none; stroke: var(--sand); stroke-width: 8; }
+    .ring-fill  { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .6s; transform: rotate(-90deg); transform-origin: center; }
+    .ball-brand { font-family: 'Playfair Display', serif; font-size: 16px; font-weight: 700; }
+    .ball-tags  { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .btag { background: var(--cream); border-radius: 8px; padding: 3px 8px; font-size: 11px; color: var(--tl); }
+    .factor-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--sand); }
+    .factor-row:last-child { border-bottom: none; }
+    .factor-body { flex: 1; }
+    .factor-lbl  { font-size: 13px; font-weight: 700; }
+    .factor-det  { font-size: 11px; color: var(--tl); margin-top: 2px; line-height: 1.4; }
+    .expand-btn  { width: 100%; background: none; border: 1px solid var(--sand); border-radius: 10px; padding: 6px; font-size: 12px; color: var(--tl); font-weight: 700; margin-top: 10px; }
+
+    /* ── PAYMENT HERO ────────────────────────────────────────────────── */
+    .pay-hero { background: linear-gradient(135deg, var(--clay-d), var(--clay)); color: #fff; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+    .pay-hero-amt { font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 700; margin: 4px 0; }
+
+    /* ── MODAL ───────────────────────────────────────────────────────── */
+    .overlay { display: none; position: fixed; inset: 0; background: rgba(44,24,16,.6); z-index: 500; align-items: flex-end; justify-content: center; }
+    .overlay.show { display: flex; }
+    .modal { background: var(--white); border-radius: 24px 24px 0 0; padding: 22px 18px 36px; width: 100%; max-width: 430px; max-height: 88vh; overflow-y: auto; }
+    .modal-title { font-family: 'Playfair Display', serif; font-size: 19px; font-weight: 700; margin-bottom: 16px; }
+    .fg { margin-bottom: 13px; }
+    .fg label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--tl); margin-bottom: 5px; }
+    .fg input, .fg select, .fg textarea {
+      width: 100%; padding: 11px 13px; border-radius: 12px;
+      border: 2px solid var(--sand); font-family: 'Lato', sans-serif;
+      font-size: 14px; background: var(--cream); color: var(--t); outline: none;
+      transition: border-color .2s; appearance: none;
+    }
+    .fg input:focus, .fg select:focus { border-color: var(--clay); }
+
+    /* ── DIVIDER ─────────────────────────────────────────────────────── */
+    .divider { height: 1px; background: var(--sand); margin: 11px 0; }
+
+    /* ── TOAST ───────────────────────────────────────────────────────── */
+    #toast {
+      display: none; position: fixed; top: 78px; left: 50%; transform: translateX(-50%);
+      background: var(--green); color: #fff; padding: 10px 22px; border-radius: 20px;
+      font-size: 13px; font-weight: 700; z-index: 999; white-space: nowrap;
+      animation: slideIn .3s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; top: 58px; } to { opacity: 1; top: 78px; } }
+
+    /* ── SPINNER ─────────────────────────────────────────────────────── */
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--sand); border-top-color: var(--clay); border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FIREBASE STATUS BANNER ──────────────────────────────────────── */
+    #fb-banner { background: #FFF9E6; border-bottom: 2px solid var(--warn); padding: 10px 16px; font-size: 12px; color: var(--warn); font-weight: 700; text-align: center; display: none; }
+
+    /* ── MISC ────────────────────────────────────────────────────────── */
+    .dim { opacity: .5; }
+    .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+  </style>
+</head>
+<body>
+
+<div id="fb-banner">⚠️ Firebase not configured — changes will not sync. See the config section in index.html.</div>
+
+<div id="app">
+  <!-- HEADER -->
+  <header>
+    <div class="h-row">
+      <div>
+        <div class="h-title">🎾 Clay Court<br>Manager</div>
+        <div class="h-sub">Club Management System</div>
+      </div>
+      <div class="h-badge" id="hbadge">─ Courts</div>
+    </div>
+  </header>
+
+  <!-- TOAST -->
+  <div id="toast"></div>
+
+  <!-- PAGES -->
+  <div class="content" id="page-dashboard"></div>
+  <div class="content" id="page-courts"    style="display:none"></div>
+  <div class="content" id="page-balls"     style="display:none"></div>
+  <div class="content" id="page-members"   style="display:none"></div>
+  <div class="content" id="page-maintenance" style="display:none"></div>
+  <div class="content" id="page-payments"  style="display:none"></div>
+
+  <!-- BOTTOM NAV -->
+  <nav>
+    <button class="nb active" data-tab="dashboard"><span class="ni">🏠</span>Home</button>
+    <button class="nb"        data-tab="courts">   <span class="ni">🎾</span>Courts</button>
+    <button class="nb"        data-tab="balls">    <span class="ni">🟡</span>Balls</button>
+    <button class="nb"        data-tab="members">  <span class="ni">👥</span>Members</button>
+    <button class="nb"        data-tab="maintenance"><span class="ni">🔧</span>Maint.</button>
+    <button class="nb"        data-tab="payments"> <span class="ni">💳</span>Pay</button>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════ -->
+
+<!-- Add Member -->
+<div class="overlay" id="m-member">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">➕ Add Member</div>
+    <div class="fg"><label>Full Name</label><input id="mb-name" placeholder="e.g. Rafael Nadal"></div>
+    <div class="fg"><label>Email</label><input id="mb-email" type="email" placeholder="email@example.com"></div>
+    <div class="fg"><label>Phone</label><input id="mb-phone" placeholder="+1 234 567890"></div>
+    <div class="fg"><label>Plan</label><select id="mb-plan"><option>Monthly</option><option>Annual</option><option>Weekly</option></select></div>
+    <div class="flex-row" style="margin-top:16px">
+      <button class="btn bs" style="flex:1" onclick="closeModal('m-member')">Cancel</button>
+      <button class="btn bp" style="flex:1" onclick="saveMember()">Add Member</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Maintenance Task -->
+<div class="overlay" id="m-task">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">🔧 Schedule Task</div>
+    <div class="fg"><label>Task Description</label><input id="tk-task" placeholder="e.g. Surface leveling"></div>
+    <div class="fg"><label>Court</label><select id="tk-court"></select></div>
+    <div class="fg"><label>Scheduled Date</label><input id="tk-date" type="date"></div>
+    <div class="fg"><label>Priority</label><select id="tk-prio"><option>High</option><option>Medium</option><option>Low</option></select></div>
+    <div class="flex-row" style="margin-top:16px">
+      <button class="btn bs" style="flex:1" onclick="closeModal('m-task')">Cancel</button>
+      <button class="btn bp" style="flex:1" onclick="saveTask()">Schedule</button>
+    </div>
+  </div>
+</div>
+
+<!-- Open Ball Set -->
+<div class="overlay" id="m-balls">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">🎾 Open New Ball Set</div>
+    <div class="fg"><label>Brand / Model</label><input id="bl-brand" placeholder="e.g. Babolat Gold Clay"></div>
+    <div class="fg"><label>Court</label><select id="bl-court"></select></div>
+    <div class="fg"><label>Ball Type</label>
+      <select id="bl-type"><option>Clay</option><option>All-Surface</option><option>Pressureless</option></select></div>
+    <div class="fg"><label>Current Weather</label>
+      <select id="bl-weather">
+        <option>Clear / Sunny</option><option>Cloudy</option><option>Windy</option>
+        <option>Rainy / Wet</option><option>Hot &amp; Dry</option>
+      </select></div>
+    <div class="fg"><label>Temperature</label>
+      <select id="bl-temp">
+        <option>Cold (&lt;10°C)</option><option selected>Mild (10–30°C)</option><option>Hot (&gt;30°C)</option>
+      </select></div>
+    <div class="fg"><label>Climate Zone</label>
+      <select id="bl-climate">
+        <option>Temperate</option><option>Mediterranean</option><option>Continental</option>
+        <option>Tropical / Humid</option><option>Arid / Desert</option>
+      </select></div>
+    <div class="flex-row" style="margin-top:16px">
+      <button class="btn bs" style="flex:1" onclick="closeModal('m-balls')">Cancel</button>
+      <button class="btn bp" style="flex:1" onclick="saveBallSet()">Open Set</button>
+    </div>
+  </div>
+</div>
+
+<!-- Update Ball Conditions -->
+<div class="overlay" id="m-ballcond">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">🌤 Update Conditions</div>
+    <input type="hidden" id="bc-id">
+    <div class="fg"><label>Current Weather</label>
+      <select id="bc-weather">
+        <option>Clear / Sunny</option><option>Cloudy</option><option>Windy</option>
+        <option>Rainy / Wet</option><option>Hot &amp; Dry</option>
+      </select></div>
+    <div class="fg"><label>Temperature</label>
+      <select id="bc-temp">
+        <option>Cold (&lt;10°C)</option><option>Mild (10–30°C)</option><option>Hot (&gt;30°C)</option>
+      </select></div>
+    <div class="fg"><label>Climate Zone</label>
+      <select id="bc-climate">
+        <option>Temperate</option><option>Mediterranean</option><option>Continental</option>
+        <option>Tropical / Humid</option><option>Arid / Desert</option>
+      </select></div>
+    <div class="flex-row" style="margin-top:16px">
+      <button class="btn bs" style="flex:1" onclick="closeModal('m-ballcond')">Cancel</button>
+      <button class="btn bp" style="flex:1" onclick="updateBallConditions()">Update</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   STATE  (local mirror of Firebase data)
+════════════════════════════════════════════════════════════════════════ */
+let courts      = {};
+let members     = {};
+let maintenance = {};
+let payments    = {};
+let balls       = {};
+
+let activeTab   = "dashboard";
+let expandedBall = null;
+let fbReady     = false;
+
+/* ════════════════════════════════════════════════════════════════════════
+   DEFAULT SEED DATA  (written to Firebase on first load if DB is empty)
+════════════════════════════════════════════════════════════════════════ */
+const SEED = {
+  courts: {
+    c1: { id:"c1", name:"Court 1", active:true,  watered:false, lastWatered:null, humidity:62, humidityAt:"—" },
+    c2: { id:"c2", name:"Court 2", active:true,  watered:false, lastWatered:null, humidity:55, humidityAt:"—" },
+    c3: { id:"c3", name:"Court 3", active:true,  watered:false, lastWatered:null, humidity:71, humidityAt:"—" },
+    c4: { id:"c4", name:"Court 4", active:false, watered:false, lastWatered:null, humidity:58, humidityAt:"—" },
+  },
+  members: {
+    m1: { id:"m1", name:"Matteo Rossi",   email:"matteo@example.com",  phone:"+39 333 1234567", plan:"Monthly", status:"Active",   joined:"2024-01-15", paid:true  },
+    m2: { id:"m2", name:"Lucia Ferretti", email:"lucia@example.com",   phone:"+39 333 7654321", plan:"Annual",  status:"Active",   joined:"2023-06-10", paid:true  },
+    m3: { id:"m3", name:"Carlos Mendez",  email:"carlos@example.com",  phone:"+34 612 345678",  plan:"Monthly", status:"Active",   joined:"2024-03-01", paid:false },
+    m4: { id:"m4", name:"Amélie Dubois",  email:"amelie@example.com",  phone:"+33 6 12345678",  plan:"Annual",  status:"Inactive", joined:"2023-11-20", paid:true  },
+  },
+  maintenance: {
+    t1: { id:"t1", court:"Court 1", task:"Line marking",     status:"Done",        scheduled:"2025-02-20", priority:"Medium" },
+    t2: { id:"t2", court:"Court 2", task:"Net replacement",  status:"Pending",     scheduled:"2025-02-25", priority:"High"   },
+    t3: { id:"t3", court:"Court 3", task:"Surface leveling", status:"In Progress", scheduled:"2025-02-22", priority:"High"   },
+    t4: { id:"t4", court:"Court 1", task:"Roller compaction",status:"Pending",     scheduled:"2025-03-01", priority:"Low"    },
+  },
+  payments: {
+    p1: { id:"p1", member:"Matteo Rossi",   amount:80,  plan:"Monthly", date:"2025-02-01", status:"Paid"    },
+    p2: { id:"p2", member:"Lucia Ferretti", amount:800, plan:"Annual",  date:"2025-01-15", status:"Paid"    },
+    p3: { id:"p3", member:"Carlos Mendez",  amount:80,  plan:"Monthly", date:"2025-02-01", status:"Overdue" },
+    p4: { id:"p4", member:"Amélie Dubois",  amount:800, plan:"Annual",  date:"2025-11-20", status:"Paid"    },
+  },
+  balls: {
+    b1: { id:"b1", court:"Court 1", brand:"Wilson US Open",  openedDate:"2025-02-10", ageDays:12, sessions:3, temperature:"Mild (10–30°C)", weather:"Clear / Sunny", climate:"Mediterranean", replaced:false },
+    b2: { id:"b2", court:"Court 2", brand:"Babolat Gold",    openedDate:"2025-02-05", ageDays:17, sessions:6, temperature:"Mild (10–30°C)", weather:"Cloudy",        climate:"Mediterranean", replaced:false },
+    b3: { id:"b3", court:"Court 3", brand:"Dunlop Fort Clay",openedDate:"2025-01-28", ageDays:25, sessions:9, temperature:"Hot (>30°C)",    weather:"Clear / Sunny", climate:"Tropical / Humid", replaced:false },
+  }
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   FIREBASE BOOTSTRAP
+════════════════════════════════════════════════════════════════════════ */
+window.addEventListener("firebase-ready", () => {
+  fbReady = true;
+  const db = window._db, dbRef = window._ref, onValue = window._onValue;
+
+  // Live listeners — update local state and re-render on any change
+  const listen = (path, setter) => {
+    onValue(dbRef(db, path), snap => {
+      if (snap.exists()) {
+        setter(snap.val());
+      } else {
+        // Seed empty database with default data
+        window._set(dbRef(db, path), SEED[path.replace("club/","")]);
+      }
+      render();
+    });
+  };
+
+  listen("club/courts",      v => courts      = v);
+  listen("club/members",     v => members     = v);
+  listen("club/maintenance", v => maintenance = v);
+  listen("club/payments",    v => payments    = v);
+  listen("club/balls",       v => balls       = v);
+});
+
+// If Firebase isn't configured, show banner and use seed data
+setTimeout(() => {
+  if (!fbReady) {
+    document.getElementById("fb-banner").style.display = "block";
+    courts      = SEED.courts;
+    members     = SEED.members;
+    maintenance = SEED.maintenance;
+    payments    = SEED.payments;
+    balls       = SEED.balls;
+    render();
+  }
+}, 2000);
+
+/* ════════════════════════════════════════════════════════════════════════
+   FIREBASE WRITE HELPERS
+════════════════════════════════════════════════════════════════════════ */
+function dbSet(path, val) {
+  if (!fbReady) return;
+  window._set(window._ref(window._db, path), val);
+}
+function dbUpdate(path, val) {
+  if (!fbReady) return;
+  window._update(window._ref(window._db, path), val);
+}
+function dbPush(path, val) {
+  if (!fbReady) return window._push(window._ref(window._db, path), val);
+  return window._push(window._ref(window._db, path), val);
+}
+function dbRemove(path) {
+  if (!fbReady) return;
+  window._remove(window._ref(window._db, path));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BALL HEALTH ENGINE
+════════════════════════════════════════════════════════════════════════ */
+function computeHealth(ball, humidity) {
+  let life = 8;
+  const factors = [];
+
+  // Humidity
+  if      (humidity > 80) { life *= .55; factors.push({icon:"💧",lbl:"Humidity",val:`${humidity}%`,det:"Very high — felt absorbs moisture, balls go dead fast",sev:"high"}); }
+  else if (humidity > 65) { life *= .75; factors.push({icon:"💧",lbl:"Humidity",val:`${humidity}%`,det:"High — felt swells, balls become heavy & slow",sev:"medium"}); }
+  else if (humidity < 30) { life *= .80; factors.push({icon:"🏜️",lbl:"Humidity",val:`${humidity}%`,det:"Very dry — pressure leaks faster through porous felt",sev:"medium"}); }
+  else                    {              factors.push({icon:"✅",lbl:"Humidity",val:`${humidity}%`,det:"Optimal humidity for ball longevity",sev:"ok"}); }
+
+  // Temperature
+  if      (ball.temperature === "Hot (>30°C)")  { life *= .82; factors.push({icon:"🌡️",lbl:"Temperature",val:ball.temperature,det:"High temp — internal pressure spikes, rubber ages faster",sev:"medium"}); }
+  else if (ball.temperature === "Cold (<10°C)") { life *= .78; factors.push({icon:"❄️",lbl:"Temperature",val:ball.temperature,det:"Cold — balls lose bounce & pressure quickly",sev:"medium"}); }
+  else                                          {              factors.push({icon:"🌡️",lbl:"Temperature",val:ball.temperature,det:"Moderate temp — ideal pressure stability",sev:"ok"}); }
+
+  // Weather
+  if      (ball.weather === "Rainy / Wet") { life *= .50; factors.push({icon:"🌧️",lbl:"Weather",val:ball.weather,det:"Wet conditions — balls absorb water and degrade very rapidly",sev:"high"}); }
+  else if (ball.weather === "Windy")       { life *= .88; factors.push({icon:"💨",lbl:"Weather",val:ball.weather,det:"Wind causes extra abrasion from unpredictable bounces",sev:"low"}); }
+  else                                     {              factors.push({icon:"☀️",lbl:"Weather",val:ball.weather,det:"No significant weather impact on wear",sev:"ok"}); }
+
+  // Climate
+  if      (ball.climate === "Tropical / Humid") { life *= .72; factors.push({icon:"🌴",lbl:"Climate",val:ball.climate,det:"Persistent ambient moisture degrades balls continuously",sev:"high"}); }
+  else if (ball.climate === "Continental")      { life *= .92; factors.push({icon:"🌲",lbl:"Climate",val:ball.climate,det:"Seasonal pressure variation — slight modifier",sev:"low"}); }
+  else if (ball.climate === "Arid / Desert")    { life *= .80; factors.push({icon:"🌵",lbl:"Climate",val:ball.climate,det:"Extreme dryness causes faster pressure bleed",sev:"medium"}); }
+  else if (ball.climate === "Mediterranean")    {              factors.push({icon:"🌅",lbl:"Climate",val:ball.climate,det:"Excellent natural conditions for ball longevity",sev:"ok"}); }
+  else                                          {              factors.push({icon:"🌍",lbl:"Climate",val:ball.climate,det:"Temperate — standard wear, no major modifier",sev:"ok"}); }
+
+  // Clay surface always applies
+  life *= .88;
+  factors.push({icon:"🟫",lbl:"Surface",val:"Clay",det:"Clay collects on felt — adds weight, accelerates fuzz wear vs hard courts",sev:"low"});
+
+  // Age penalty
+  const age = ball.ageDays || 0;
+  if      (age > 21) { life = Math.min(life, 5); factors.push({icon:"📅",lbl:"Age",val:`${age} days`,det:"Beyond 3 weeks — natural pressure loss becomes significant even without play",sev:"high"}); }
+  else if (age > 14) { life *= .85;               factors.push({icon:"📅",lbl:"Age",val:`${age} days`,det:"Gradual pressure decline starting — monitor closely",sev:"medium"}); }
+  else               {                             factors.push({icon:"📅",lbl:"Age",val:`${age} days`,det:"Pressure still strong — minimal age decay",sev:"ok"}); }
+
+  life = Math.max(Math.round(life), 1);
+  const pct = Math.min((ball.sessions / life) * 100, 100);
+  const remaining = Math.max(life - ball.sessions, 0);
+
+  let condition, color, emoji, urgency;
+  if      (pct >= 100) { condition="Replace Now"; color="#B73535"; emoji="🔴"; urgency="crit"; }
+  else if (pct >=  75) { condition="Worn";        color="#C17E0A"; emoji="🟠"; urgency="warn"; }
+  else if (pct >=  40) { condition="Good";        color="#6B8E23"; emoji="🟡"; urgency="ok";   }
+  else                 { condition="Fresh";       color="#2D7D46"; emoji="🟢"; urgency="fresh";}
+
+  const score = Math.round(100 - pct);
+  return { life, pct, remaining, condition, color, emoji, urgency, score, factors };
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════════════════════════════════════ */
+const arr   = obj => obj ? Object.values(obj) : [];
+const now   = ()  => new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"});
+const today = ()  => new Date().toISOString().slice(0,10);
+const uid   = ()  => "id" + Date.now() + Math.random().toString(36).slice(2,7);
+const initials = n => n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.display = "block";
+  setTimeout(() => { el.style.display = "none"; }, 2500);
+}
+function openModal(id)  { document.getElementById(id).classList.add("show"); }
+function closeModal(id) { document.getElementById(id).classList.remove("show"); }
+document.querySelectorAll(".overlay").forEach(el => el.addEventListener("click", () => el.classList.remove("show")));
+
+/* ════════════════════════════════════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════════════════════════════════════ */
+document.querySelectorAll(".nb").forEach(btn => {
+  btn.addEventListener("click", () => {
+    activeTab = btn.dataset.tab;
+    document.querySelectorAll(".nb").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll("[id^='page-']").forEach(p => p.style.display = "none");
+    document.getElementById("page-" + activeTab).style.display = "block";
+    render();
+  });
+});
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER DISPATCHER
+════════════════════════════════════════════════════════════════════════ */
+function render() {
+  // update header badge
+  const active = arr(courts).filter(c => c.active).length;
+  document.getElementById("hbadge").textContent = `${active} Courts Active`;
+
+  if (activeTab === "dashboard")   renderDashboard();
+  if (activeTab === "courts")      renderCourts();
+  if (activeTab === "balls")       renderBalls();
+  if (activeTab === "members")     renderMembers();
+  if (activeTab === "maintenance") renderMaintenance();
+  if (activeTab === "payments")    renderPayments();
+
+  // Populate court dropdowns in modals
+  const cList = arr(courts).filter(c=>c.active).map(c=>`<option>${c.name}</option>`).join("");
+  document.getElementById("tk-court").innerHTML = cList;
+  document.getElementById("bl-court").innerHTML = cList;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════════════════════════════════════ */
+function renderDashboard() {
+  const activeCourts  = arr(courts).filter(c => c.active);
+  const wateredCount  = activeCourts.filter(c => c.watered).length;
+  const activeMembers = arr(members).filter(m => m.status === "Active").length;
+  const overduePay    = arr(payments).filter(p => p.status === "Overdue").length;
+  const revenue       = arr(payments).filter(p => p.status === "Paid").reduce((s,p) => s + (p.amount||0), 0);
+  const pendingTasks  = arr(maintenance).filter(t => t.status !== "Done").length;
+  const activeBalls   = arr(balls).filter(b => !b.replaced);
+  const needReplace   = activeBalls.filter(b => {
+    const court = arr(courts).find(c => c.name === b.court);
+    const h = court?.humidity ?? 60;
+    return computeHealth(b, h).urgency === "crit";
+  }).length;
+
+  const waterDots = activeCourts.map(c =>
+    `<div style="flex:1;text-align:center">
+       <div style="font-size:22px">${c.watered ? "💧" : "🟤"}</div>
+       <div style="font-size:10px;color:var(--tl);margin-top:3px">${c.name.replace("Court ","C")}</div>
+     </div>`).join("");
+
+  const alertHtml = needReplace > 0 ? `
+    <div class="card border-red" style="background:#FFF9F9">
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="font-size:26px">⚠️</div>
+        <div>
+          <div style="font-weight:700;color:var(--bad)">${needReplace} Ball Set${needReplace>1?"s":""} Need Replacement</div>
+          <div class="sub" style="margin-top:3px">Check the Balls tab for details</div>
+        </div>
+      </div>
+      <button class="btn bbad full" onclick="switchTab('balls')">View Ball Status →</button>
+    </div>` : "";
+
+  document.getElementById("page-dashboard").innerHTML = `
+    <div class="stitle">Overview</div>
+    <div class="g2" style="margin-bottom:14px">
+      <div class="scard"><div class="sval">${activeMembers}</div><div class="slbl">Active Members</div></div>
+      <div class="scard"><div class="sval" style="color:${overduePay>0?"var(--bad)":"var(--clay)"}">${overduePay}</div><div class="slbl">Overdue Payments</div></div>
+      <div class="scard"><div class="sval" style="color:var(--green)">€${revenue}</div><div class="slbl">Revenue Collected</div></div>
+      <div class="scard"><div class="sval" style="color:${needReplace>0?"var(--bad)":"var(--green)"}">${needReplace}</div><div class="slbl">Balls to Replace</div></div>
+    </div>
+
+    <!-- watering summary -->
+    <div class="card" style="background:linear-gradient(135deg,#E8F5E9,#F1F9F0);margin-bottom:11px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:16px;color:var(--green-l)">💧 Today's Watering</div>
+        <div style="font-size:13px;color:var(--ok);font-weight:700">${wateredCount}/${activeCourts.length} courts</div>
+      </div>
+      <div style="display:flex;gap:8px">${waterDots}</div>
+      <button class="btn bs full" style="font-size:12px;margin-top:11px" onclick="resetWatering()">🔄 Reset Daily Watering</button>
+    </div>
+
+    ${alertHtml}
+
+    <!-- quick actions -->
+    <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:16px;margin:14px 0 10px">Quick Actions</div>
+    <div class="g2">
+      <button class="btn bs" style="padding:14px;flex-direction:column;display:flex;align-items:center;gap:6px;font-size:13px" onclick="openMemberModal()"><span style="font-size:22px">👤</span>Add Member</button>
+      <button class="btn bs" style="padding:14px;flex-direction:column;display:flex;align-items:center;gap:6px;font-size:13px" onclick="openTaskModal()"><span style="font-size:22px">🔧</span>Schedule Task</button>
+      <button class="btn bs" style="padding:14px;flex-direction:column;display:flex;align-items:center;gap:6px;font-size:13px" onclick="openBallModal()"><span style="font-size:22px">🎾</span>Open Ball Set</button>
+      <button class="btn bs" style="padding:14px;flex-direction:column;display:flex;align-items:center;gap:6px;font-size:13px" onclick="switchTab('payments')"><span style="font-size:22px">💳</span>View Payments</button>
+    </div>`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   COURTS
+════════════════════════════════════════════════════════════════════════ */
+function renderCourts() {
+  const html = arr(courts).map(c => {
+    const hColor = c.humidity >= 65 ? "hok" : c.humidity >= 50 ? "hwarn" : "hbad";
+    const hBar   = c.humidity >= 65 ? "var(--ok)" : c.humidity >= 50 ? "var(--warn)" : "var(--bad)";
+    const inner  = c.active ? `
+      <div class="m2">
+        <div class="metric">
+          <div class="ml">💧 Watered Today</div>
+          <div class="mv ${c.watered?"wyes":"wno"}">${c.watered?"Yes":"No"}</div>
+          ${c.lastWatered ? `<div class="ms">at ${c.lastWatered}</div>` : ""}
+        </div>
+        <div class="metric">
+          <div class="ml">💦 Humidity</div>
+          <div class="mv ${hColor}">${c.humidity}%</div>
+          <div class="hbarbg"><div class="hbar" style="width:${c.humidity}%;background:${hBar}"></div></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--tl);margin-bottom:10px">Last checked: ${c.humidityAt||"—"}</div>
+      <div class="flex-row">
+        <button class="btn ${c.watered?"bs":"bok"}" style="flex:1" ${c.watered?"disabled":""} onclick="waterCourt('${c.id}')">
+          ${c.watered ? "✓ Watered" : "💧 Water Now"}
+        </button>
+        <button class="btn bs" style="flex:1" onclick="refreshHumidity('${c.id}')">📡 Check Humidity</button>
+      </div>` : "";
+
+    return `
+      <div class="card court-card">
+        <div class="crow">
+          <div class="cname">${c.name}</div>
+          <span class="badge ${c.active?"b-ok":"b-warn"}">${c.active?"● Active":"○ Inactive"}</span>
+        </div>
+        ${inner}
+        <div class="divider"></div>
+        <button class="btn ${c.active?"bbad":"bok"}" style="width:100%;font-size:12px" onclick="toggleCourt('${c.id}')">
+          ${c.active?"Close Court":"Open Court"}
+        </button>
+      </div>`;
+  }).join("");
+  document.getElementById("page-courts").innerHTML = `<div class="stitle">Courts & Conditions</div>${html}`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   BALLS
+════════════════════════════════════════════════════════════════════════ */
+function scoreBadgeClass(urgency) {
+  return urgency === "crit" ? "b-bad" : urgency === "warn" ? "b-warn" : urgency === "ok" ? "b-clay" : "b-ok";
+}
+function impactBadge(sev) {
+  const map = {high:"#FDECEA:#B73535", medium:"#FFF9E6:#C17E0A", low:"#FFF3E0:#E07B2A", ok:"#E8F5E9:#2D7D46"};
+  const [bg,cl] = (map[sev]||map.ok).split(":");
+  return `<span style="padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:${bg};color:${cl}">${sev}</span>`;
+}
+function ringPath(score, color) {
+  const r = 36, circ = 2*Math.PI*r, offset = circ - (score/100)*circ;
+  return `<svg width="84" height="84" viewBox="0 0 84 84">
+    <circle class="ring-track" cx="42" cy="42" r="${r}"/>
+    <circle class="ring-fill" cx="42" cy="42" r="${r}"
+      style="stroke:${color};stroke-dasharray:${circ};stroke-dashoffset:${offset}"/>
+  </svg>`;
+}
+
+function renderBalls() {
+  const active   = arr(balls).filter(b => !b.replaced);
+  const archived = arr(balls).filter(b =>  b.replaced);
+
+  const legendHtml = `
+    <div class="card" style="background:linear-gradient(135deg,#FDF6F0,#FAF0E8);margin-bottom:12px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--clay-d)">🧠 Replacement Score Factors</div>
+      <div class="g2">
+        ${[["💧 Humidity","High court humidity fluffs felt"],["☀️ Weather","Rain & heat accelerate wear"],
+           ["🌡 Temperature","Cold→flat; Heat→pressure loss"],["🌍 Climate","Tropical zones cut life in half"]]
+          .map(([k,v]) => `<div style="background:var(--cream);border-radius:10px;padding:8px 10px"><div style="font-weight:700;font-size:12px">${k}</div><div style="font-size:11px;color:var(--tl);margin-top:2px">${v}</div></div>`).join("")}
+      </div>
+    </div>`;
+
+  const activeBallsHtml = active.length === 0
+    ? `<div class="card" style="text-align:center;padding:30px"><div style="font-size:38px;margin-bottom:10px">🎾</div><div style="font-size:14px;color:var(--tl)">No active ball sets. Open a new set to start tracking.</div></div>`
+    : active.map(b => {
+        const court  = arr(courts).find(c => c.name === b.court);
+        const h      = court?.humidity ?? 60;
+        const health = computeHealth(b, h);
+        const exp    = expandedBall === b.id;
+
+        const recText = health.pct >= 100 ? "Replace immediately — balls have exceeded their usable life." :
+                        health.pct >=  75 ? "Declining fast. Replace within 1–2 sessions." :
+                        health.pct >=  40 ? "Performing well. Monitor after each session." :
+                        "Fresh set — enjoy reliable pace and bounce.";
+
+        const factorsHtml = health.factors.map(f => `
+          <div class="factor-row">
+            <span style="font-size:18px">${f.icon}</span>
+            <div class="factor-body">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div class="factor-lbl">${f.lbl}: <span style="color:var(--clay)">${f.val}</span></div>
+                ${impactBadge(f.sev)}
+              </div>
+              <div class="factor-det">${f.det}</div>
+            </div>
+          </div>`).join("");
+
+        const borderClass = health.urgency === "crit" ? "border-red" : health.urgency === "warn" ? "border-warn" : "";
+
+        return `
+          <div class="card ${borderClass}">
+            <div style="display:flex;gap:12px;align-items:flex-start">
+              <div class="ring-wrap" style="width:84px;height:84px">
+                ${ringPath(health.score, health.color)}
+                <div class="ring-lbl">
+                  <div class="ring-score" style="color:${health.color}">${health.score}</div>
+                  <div class="ring-unit">score</div>
+                </div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="ball-brand">${b.brand}</div>
+                <div class="sub" style="margin-top:2px">${b.court} · ${b.type||"Clay"} type</div>
+                <div class="ball-tags">
+                  <span class="btag">📅 ${b.openedDate}</span>
+                  <span class="btag">🎾 ${b.sessions} sessions</span>
+                  <span class="btag">${b.weather}</span>
+                  <span class="btag">${b.temperature}</span>
+                </div>
+                <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+                  <span class="badge ${scoreBadgeClass(health.urgency)}">${health.emoji} ${health.condition}</span>
+                  ${health.remaining > 0 ? `<span style="font-size:12px;color:var(--tl)">~${health.remaining} sessions left</span>` : ""}
+                </div>
+              </div>
+            </div>
+
+            <div style="background:var(--cream);border-radius:10px;padding:10px 12px;margin:11px 0 7px;font-size:13px;color:var(--tm);line-height:1.5">
+              💡 ${recText}
+            </div>
+
+            <button class="expand-btn" onclick="toggleExpand('${b.id}')">
+              ${exp ? "▲ Hide Details" : "▼ Show Factor Breakdown"}
+            </button>
+
+            ${exp ? `
+              <div style="margin-top:10px">
+                <div style="font-weight:700;font-size:13px;margin-bottom:7px">Degradation Factors</div>
+                ${factorsHtml}
+                <button class="btn bwarn" style="width:100%;margin-top:10px;font-size:12px"
+                  onclick="openCondModal('${b.id}','${b.weather}','${b.temperature}','${b.climate}')">
+                  🌤 Update Weather & Climate
+                </button>
+              </div>` : ""}
+
+            <div class="flex-row" style="margin-top:10px">
+              <button class="btn bs" style="flex:1;font-size:12px" onclick="addSession('${b.id}')">+1 Session</button>
+              <button class="btn ${health.urgency==="crit"||health.urgency==="warn"?"bbad":"bs"}" style="flex:1;font-size:12px"
+                onclick="replaceBalls('${b.id}')">🔄 Replace Balls</button>
+            </div>
+          </div>`;
+      }).join("");
+
+  const archivedHtml = archived.length > 0 ? `
+    <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:var(--tl);margin:16px 0 10px">Replaced Sets</div>
+    ${archived.map(b => `
+      <div class="card dim">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:14px">${b.brand}</div>
+            <div class="sub">${b.court} · ${b.sessions} sessions · replaced ${b.replacedDate||"—"}</div>
+          </div>
+          <span style="font-size:24px">♻️</span>
+        </div>
+      </div>`).join("")}` : "";
+
+  document.getElementById("page-balls").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="stitle" style="margin-bottom:0">Tennis Balls</div>
+      <button class="btn bp" style="padding:8px 14px;font-size:12px" onclick="openBallModal()">+ New Set</button>
+    </div>
+    ${legendHtml}
+    ${activeBallsHtml}
+    ${archivedHtml}`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MEMBERS
+════════════════════════════════════════════════════════════════════════ */
+function renderMembers() {
+  const html = arr(members).map(m => `
+    <div class="card">
+      <div class="mcard">
+        <div class="avatar">${initials(m.name)}</div>
+        <div class="minfo">
+          <div class="mname">${m.name}</div>
+          <div class="sub">${m.email}</div>
+          <div class="sub">📱 ${m.phone}</div>
+        </div>
+        <div class="mstatus">
+          <span class="badge ${m.status==="Active"?"b-ok":"b-warn"}">${m.status}</span>
+          <span class="badge ${m.paid?"b-ok":"b-bad"}">${m.paid?"Paid":"Owes"}</span>
+          <div style="font-size:11px;color:var(--tl);margin-top:2px">${m.plan}</div>
+        </div>
+      </div>
+    </div>`).join("");
+
+  document.getElementById("page-members").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="stitle" style="margin-bottom:0">Members</div>
+      <button class="btn bp" style="padding:8px 16px" onclick="openMemberModal()">+ Add</button>
+    </div>
+    ${html || '<div class="card" style="text-align:center;padding:30px;color:var(--tl)">No members yet.</div>'}`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   MAINTENANCE
+════════════════════════════════════════════════════════════════════════ */
+function renderMaintenance() {
+  const dotColor = s => s==="Done"?"var(--ok)":s==="Pending"?"var(--warn)":"var(--clay)";
+  const priClass = p => p==="High"?"b-ph":p==="Medium"?"b-pm":"b-pl";
+
+  const html = arr(maintenance).map(t => `
+    <div class="card">
+      <div class="trow">
+        <div class="tdot" style="background:${dotColor(t.status)}"></div>
+        <div class="tinfo">
+          <div class="tname">${t.task}</div>
+          <div class="sub">${t.court} · 📅 ${t.scheduled}</div>
+          <div class="tmeta">
+            <span class="badge ${priClass(t.priority)}">${t.priority}</span>
+            <span style="font-size:12px;font-weight:700;color:${dotColor(t.status)}">${t.status}</span>
+          </div>
+          ${t.status !== "Done" ? `
+            <div class="flex-row" style="margin-top:9px">
+              ${t.status === "Pending" ? `<button class="btn bs" style="font-size:12px;padding:6px 10px" onclick="updateTaskStatus('${t.id}','In Progress')">▶ Start</button>` : ""}
+              <button class="btn bok" style="font-size:12px;padding:6px 10px" onclick="updateTaskStatus('${t.id}','Done')">✓ Mark Done</button>
+            </div>` : ""}
+        </div>
+      </div>
+    </div>`).join("");
+
+  document.getElementById("page-maintenance").innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="stitle" style="margin-bottom:0">Maintenance</div>
+      <button class="btn bp" style="padding:8px 16px" onclick="openTaskModal()">+ Add</button>
+    </div>
+    ${html || '<div class="card" style="text-align:center;padding:30px;color:var(--tl)">No tasks scheduled.</div>'}`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   PAYMENTS
+════════════════════════════════════════════════════════════════════════ */
+function renderPayments() {
+  const revenue  = arr(payments).filter(p=>p.status==="Paid").reduce((s,p)=>s+(p.amount||0),0);
+  const overdue  = arr(payments).filter(p=>p.status==="Overdue").length;
+
+  const html = arr(payments).map(p => `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700;font-size:14px">${p.member}</div>
+          <div class="sub">${p.plan} · ${p.date}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700">€${p.amount}</div>
+          <span class="badge ${p.status==="Paid"?"b-ok":"b-bad"}">${p.status}</span>
+        </div>
+      </div>
+      ${p.status==="Overdue" ? `<button class="btn bok full" style="font-size:12px" onclick="markPaid('${p.id}')">💳 Mark as Paid</button>` : ""}
+    </div>`).join("");
+
+  document.getElementById("page-payments").innerHTML = `
+    <div class="stitle">Payments</div>
+    <div class="pay-hero">
+      <div style="font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:1px">Total Collected</div>
+      <div class="pay-hero-amt">€${revenue}</div>
+      <div style="font-size:12px;opacity:.7">${overdue} payment${overdue!==1?"s":""} overdue</div>
+    </div>
+    ${html}`;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIONS — COURTS
+════════════════════════════════════════════════════════════════════════ */
+function waterCourt(id) {
+  const t = now();
+  courts[id] = { ...courts[id], watered: true, lastWatered: t };
+  dbUpdate(`club/courts/${id}`, { watered: true, lastWatered: t });
+  toast("💧 Court watered!"); render();
+}
+function refreshHumidity(id) {
+  const h = Math.floor(Math.random() * 30 + 45);
+  courts[id] = { ...courts[id], humidity: h, humidityAt: now() };
+  dbUpdate(`club/courts/${id}`, { humidity: h, humidityAt: now() });
+  toast("📡 Humidity refreshed!"); render();
+}
+function toggleCourt(id) {
+  courts[id].active = !courts[id].active;
+  dbUpdate(`club/courts/${id}`, { active: courts[id].active });
+  toast(courts[id].active ? "✅ Court opened" : "🔒 Court closed"); render();
+}
+function resetWatering() {
+  arr(courts).forEach(c => {
+    courts[c.id].watered = false;
+    dbUpdate(`club/courts/${c.id}`, { watered: false, lastWatered: null });
+  });
+  toast("🔄 Watering reset for all courts"); render();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIONS — MEMBERS
+════════════════════════════════════════════════════════════════════════ */
+function openMemberModal() { openModal("m-member"); }
+function saveMember() {
+  const name = document.getElementById("mb-name").value.trim();
+  if (!name) { toast("⚠️ Please enter a name"); return; }
+  const id  = uid();
+  const rec = { id, name, email: document.getElementById("mb-email").value.trim(),
+    phone: document.getElementById("mb-phone").value.trim(),
+    plan: document.getElementById("mb-plan").value,
+    status: "Active", joined: today(), paid: false };
+  members[id] = rec;
+  dbSet(`club/members/${id}`, rec);
+  closeModal("m-member");
+  ["mb-name","mb-email","mb-phone"].forEach(x => document.getElementById(x).value = "");
+  toast("✅ Member added!"); render();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIONS — MAINTENANCE
+════════════════════════════════════════════════════════════════════════ */
+function openTaskModal() { openModal("m-task"); }
+function saveTask() {
+  const task = document.getElementById("tk-task").value.trim();
+  if (!task) { toast("⚠️ Please enter a task description"); return; }
+  const id  = uid();
+  const rec = { id, court: document.getElementById("tk-court").value,
+    task, status: "Pending",
+    scheduled: document.getElementById("tk-date").value || today(),
+    priority: document.getElementById("tk-prio").value };
+  maintenance[id] = rec;
+  dbSet(`club/maintenance/${id}`, rec);
+  closeModal("m-task");
+  document.getElementById("tk-task").value = "";
+  toast("✅ Task scheduled!"); render();
+}
+function updateTaskStatus(id, status) {
+  maintenance[id].status = status;
+  dbUpdate(`club/maintenance/${id}`, { status });
+  toast(`Task marked as ${status}`); render();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIONS — PAYMENTS
+════════════════════════════════════════════════════════════════════════ */
+function markPaid(id) {
+  payments[id].status = "Paid";
+  dbUpdate(`club/payments/${id}`, { status: "Paid" });
+  toast("💳 Payment recorded!"); render();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIONS — BALLS
+════════════════════════════════════════════════════════════════════════ */
+function openBallModal() { openModal("m-balls"); }
+function saveBallSet() {
+  const brand = document.getElementById("bl-brand").value.trim();
+  if (!brand) { toast("⚠️ Please enter a brand name"); return; }
+  const id  = uid();
+  const rec = { id, court: document.getElementById("bl-court").value,
+    brand, type: document.getElementById("bl-type").value,
+    openedDate: today(), ageDays: 0, sessions: 0,
+    weather: document.getElementById("bl-weather").value,
+    temperature: document.getElementById("bl-temp").value,
+    climate: document.getElementById("bl-climate").value,
+    replaced: false };
+  balls[id] = rec;
+  dbSet(`club/balls/${id}`, rec);
+  closeModal("m-balls");
+  document.getElementById("bl-brand").value = "";
+  toast("🎾 New ball set opened!"); render();
+}
+function addSession(id) {
+  balls[id].sessions = (balls[id].sessions || 0) + 1;
+  balls[id].ageDays  = (balls[id].ageDays  || 0) + 1;
+  dbUpdate(`club/balls/${id}`, { sessions: balls[id].sessions, ageDays: balls[id].ageDays });
+  toast("🎾 Session logged!"); render();
+}
+function replaceBalls(id) {
+  const old = balls[id];
+  // Archive
+  const archiveData = { replaced: true, replacedDate: today() };
+  balls[id] = { ...old, ...archiveData };
+  dbUpdate(`club/balls/${id}`, archiveData);
+  // Fresh set
+  const newId  = uid();
+  const newRec = { ...old, id: newId, sessions: 0, ageDays: 0, openedDate: today(), replaced: false };
+  balls[newId] = newRec;
+  dbSet(`club/balls/${newId}`, newRec);
+  toast("✅ Balls replaced with fresh set!"); render();
+}
+function toggleExpand(id) {
+  expandedBall = expandedBall === id ? null : id;
+  render();
+}
+function openCondModal(id, weather, temp, climate) {
+  document.getElementById("bc-id").value = id;
+  document.getElementById("bc-weather").value = weather;
+  document.getElementById("bc-temp").value    = temp;
+  document.getElementById("bc-climate").value = climate;
+  openModal("m-ballcond");
+}
+function updateBallConditions() {
+  const id      = document.getElementById("bc-id").value;
+  const weather = document.getElementById("bc-weather").value;
+  const temp    = document.getElementById("bc-temp").value;
+  const climate = document.getElementById("bc-climate").value;
+  balls[id] = { ...balls[id], weather, temperature: temp, climate };
+  dbUpdate(`club/balls/${id}`, { weather, temperature: temp, climate });
+  closeModal("m-ballcond");
+  toast("🌤 Conditions updated!"); render();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   UTILITY — programmatic tab switch
+════════════════════════════════════════════════════════════════════════ */
+function switchTab(tab) {
+  document.querySelector(`[data-tab="${tab}"]`).click();
+}
+</script>
+</body>
+</html>
