@@ -7,14 +7,15 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
 
 <!--
-  ╔══════════════════════════════════════════════════════════╗
-  ║  Paste your Firebase config here                        ║
-  ║  Firebase Console → Project Settings → Your Apps → Web  ║
-  ╚══════════════════════════════════════════════════════════╝
+  ╔══════════════════════════════════════════════════════════════════╗
+  ║  STEP 1 — Paste your Firebase config (Project Settings → Apps) ║
+  ║  STEP 2 — Add your OpenWeatherMap key in Settings tab           ║
+  ╚══════════════════════════════════════════════════════════════════╝
 -->
 <script type="module">
-  import { initializeApp }                          from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { initializeApp }                                         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, update, onValue, serverTimestamp }
+                                                                   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   // ▼▼▼ REPLACE WITH YOUR OWN CONFIG ▼▼▼
   const firebaseConfig = {
@@ -28,12 +29,27 @@
   };
   // ▲▲▲ REPLACE WITH YOUR OWN CONFIG ▲▲▲
 
-  try {
-    const db = getDatabase(initializeApp(firebaseConfig));
-    window._db=db; window._ref=ref; window._set=set;
-    window._update=update; window._onValue=onValue;
-    window.dispatchEvent(new CustomEvent("firebase-ready"));
-  } catch(e) { console.warn("Firebase init failed:", e.message); }
+  // Detect placeholder — don't init if config not filled in
+  if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+    console.warn("Firebase config not set. Running in local mode.");
+    window._fbConfigured = false;
+  } else {
+    try {
+      const app = initializeApp(firebaseConfig);
+      const db  = getDatabase(app);
+      window._db              = db;
+      window._ref             = ref;
+      window._set             = set;
+      window._update          = update;
+      window._onValue         = onValue;
+      window._serverTimestamp = serverTimestamp;
+      window._fbConfigured    = true;
+      window.dispatchEvent(new CustomEvent("firebase-ready"));
+    } catch(e) {
+      console.error("Firebase init failed:", e.message);
+      window._fbConfigured = false;
+    }
+  }
 </script>
 
 <style>
@@ -48,131 +64,191 @@
 }
 html,body{height:100%;background:var(--cream);font-family:'Lato',sans-serif;color:var(--t)}
 button{font-family:'Lato',sans-serif;cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:'Lato',sans-serif}
 #app{max-width:430px;margin:0 auto;min-height:100vh;background:var(--cream)}
-header{background:linear-gradient(135deg,var(--clay-d) 0%,var(--clay) 60%,var(--clay-l) 100%);padding:16px 16px 12px;position:sticky;top:0;z-index:100;box-shadow:0 4px 15px rgba(139,69,19,.35)}
-.h-row{display:flex;justify-content:space-between;align-items:flex-start}
-.h-title{font-family:'Playfair Display',serif;color:var(--cream);font-size:20px;font-weight:700;line-height:1.1}
-.h-sub{color:rgba(250,246,240,.75);font-size:11px;margin-top:2px}
-.h-badge{background:rgba(250,246,240,.2);border:1px solid rgba(250,246,240,.35);color:var(--cream);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+
+/* ── HEADER ── */
+header{background:linear-gradient(135deg,var(--clay-d) 0%,var(--clay) 60%,var(--clay-l) 100%);padding:14px 14px 10px;position:sticky;top:0;z-index:100;box-shadow:0 4px 15px rgba(139,69,19,.35)}
+.h-row{display:flex;justify-content:space-between;align-items:center}
+.h-title{font-family:'Playfair Display',serif;color:var(--cream);font-size:18px;font-weight:700;line-height:1.1}
+.h-sub{color:rgba(250,246,240,.7);font-size:10px;margin-top:1px}
+.h-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.h-badge{background:rgba(250,246,240,.2);border:1px solid rgba(250,246,240,.3);color:var(--cream);border-radius:20px;padding:2px 9px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;white-space:nowrap}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.sync-ok{background:#4CAF50}.sync-off{background:#FF9800}.sync-err{background:#F44336}
+#sync-status{font-size:10px;color:var(--cream);opacity:.8;display:flex;align-items:center}
+
+/* ── NAV ── */
 nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--white);border-top:2px solid var(--sand);display:flex;z-index:200;box-shadow:0 -4px 20px rgba(44,24,16,.1)}
-.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:7px 1px 10px;background:none;border:none;color:var(--tl);font-size:7.5px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;transition:color .2s}
+.nb{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 1px 10px;background:none;border:none;color:var(--tl);font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.2px;transition:color .2s}
 .nb.active{color:var(--clay)}
-.ni{font-size:17px;line-height:1}
-.content{padding:14px 14px 88px}
-.stitle{font-family:'Playfair Display',serif;font-size:19px;font-weight:700;margin-bottom:13px}
-.sub{font-size:12px;color:var(--tl);margin-top:2px}
-.card{background:var(--white);border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:var(--sh);border:1px solid rgba(232,220,200,.6)}
-.card.br{border:1.5px solid #F5C6C6}.card.bw{border:1.5px solid #FFD699}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.scard{background:var(--white);border-radius:14px;padding:12px;box-shadow:var(--sh);border:1px solid rgba(232,220,200,.6);text-align:center}
-.sval{font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--clay)}
-.slbl{font-size:10px;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
-.btn{padding:9px 13px;border-radius:12px;font-size:13px;font-weight:700;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.ni{font-size:16px;line-height:1}
+
+/* ── LAYOUT ── */
+.content{padding:13px 13px 86px}
+.stitle{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:12px}
+.sub{font-size:11px;color:var(--tl);margin-top:2px}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:14px;padding:13px;margin-bottom:9px;box-shadow:var(--sh);border:1px solid rgba(232,220,200,.6)}
+.card.br{border:1.5px solid #F5C6C6}.card.bw{border:1.5px solid #FFD699}.card.bg{border:1.5px solid #C8E6C9}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.scard{background:var(--white);border-radius:13px;padding:11px;box-shadow:var(--sh);border:1px solid rgba(232,220,200,.6);text-align:center}
+.sval{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--clay)}
+.slbl{font-size:10px;color:var(--tl);text-transform:uppercase;letter-spacing:.4px;margin-top:1px}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 12px;border-radius:11px;font-size:12px;font-weight:700;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:4px}
 .btn:active{transform:scale(.97)}
-.btn.full{width:100%;margin-top:8px}
+.btn.full{width:100%;margin-top:7px}
 .bp{background:var(--clay);color:#fff}
 .bs{background:var(--sand);color:var(--t)}
 .bok{background:#E8F5E9;color:var(--ok)}
 .bbad{background:#FDECEA;color:var(--bad)}
 .bwarn{background:#FFF3E0;color:var(--warn)}
 .bai{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#e0d0ff}
-.flex-row{display:flex;gap:8px}
-.badge{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;display:inline-block}
-.b-ok{background:#E8F5E9;color:var(--ok)}
-.b-warn{background:#FFF3E0;color:var(--warn)}
-.b-bad{background:#FDECEA;color:var(--bad)}
-.b-clay{background:#FAE8DE;color:var(--clay-d)}
+.bghost{background:none;border:1px solid var(--sand);color:var(--tl);padding:6px 11px;font-size:11px}
+.flex-row{display:flex;gap:7px}
+
+/* ── BADGES ── */
+.badge{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;display:inline-block}
+.b-ok{background:#E8F5E9;color:var(--ok)}.b-warn{background:#FFF3E0;color:var(--warn)}.b-bad{background:#FDECEA;color:var(--bad)}
+.b-clay{background:#FAE8DE;color:var(--clay-d)}.b-blue{background:#E3F2FD;color:#1565C0}
 .b-ph{background:#FDECEA;color:var(--bad)}.b-pm{background:#FFF9E6;color:var(--earth)}.b-pl{background:#E8F5E9;color:var(--ok)}
-.b-morning{background:#FFF8E1;color:#E65100}
-.b-evening{background:#E8EAF6;color:#3949AB}
-.b-both{background:#F3E5F5;color:#7B1FA2}
-.b-post{background:#FDECEA;color:var(--bad)}
+.b-morning{background:#FFF8E1;color:#E65100}.b-evening{background:#E8EAF6;color:#3949AB}
+.b-both{background:#F3E5F5;color:#7B1FA2}.b-post{background:#FDECEA;color:var(--bad)}
+
+/* ── COURT ── */
 .court-card{position:relative;overflow:hidden}
 .court-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,var(--clay-d),var(--clay),var(--clay-l))}
-.crow{display:flex;justify-content:space-between;align-items:center;margin-bottom:11px}
-.cname{font-family:'Playfair Display',serif;font-size:17px;font-weight:700}
-.m2{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:11px}
-.metric{background:var(--cream);border-radius:11px;padding:9px 11px}
-.ml{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--tl);margin-bottom:3px}
-.mv{font-size:19px;font-weight:700;font-family:'Playfair Display',serif}
-.ms{font-size:10px;color:var(--tl);margin-top:2px}
-.hbarbg{background:var(--sand);border-radius:4px;height:5px;margin-top:4px}
-.hbar{height:5px;border-radius:4px}
+.crow{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cname{font-family:'Playfair Display',serif;font-size:16px;font-weight:700}
+.m2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.metric{background:var(--cream);border-radius:10px;padding:8px 10px}
+.ml{font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:var(--tl);margin-bottom:2px}
+.mv{font-size:18px;font-weight:700;font-family:'Playfair Display',serif}
+.ms{font-size:10px;color:var(--tl);margin-top:1px}
+.hbarbg{background:var(--sand);border-radius:3px;height:4px;margin-top:3px}
+.hbar{height:4px;border-radius:3px}
 .hok{color:var(--ok)}.hwarn{color:var(--warn)}.hbad{color:var(--bad)}
 .wyes{color:var(--ok)}.wno{color:var(--bad)}
-.mcard{display:flex;align-items:center;gap:11px}
-.avatar{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--clay-d),var(--clay-l));display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;font-family:'Playfair Display',serif;flex-shrink:0}
+
+/* ── WEATHER BADGE ── */
+.wx-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:9px}
+.wx-chip{background:var(--cream);border-radius:8px;padding:4px 9px;font-size:11px;color:var(--tm);display:flex;align-items:center;gap:4px}
+
+/* ── WATERING HISTORY ── */
+.wlog-row{display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--sand)}
+.wlog-row:last-child{border-bottom:none}
+.wlog-time{font-size:11px;color:var(--tl);min-width:70px;flex-shrink:0}
+.wlog-detail{flex:1;font-size:12px}
+.wlog-amount{font-weight:700;color:var(--clay-d)}
+
+/* ── MEMBER ── */
+.mcard{display:flex;align-items:center;gap:10px}
+.avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--clay-d),var(--clay-l));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;font-family:'Playfair Display',serif;flex-shrink:0}
 .minfo{flex:1;min-width:0}
 .mname{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mstatus{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-.trow{display:flex;gap:11px;align-items:flex-start}
-.tdot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex-shrink:0}
+
+/* ── VISIT SUMMARY ── */
+.vs-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.vs-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--clay-d),var(--clay-l));display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;font-family:'Playfair Display',serif;flex-shrink:0}
+.session-row{padding:8px 0;border-bottom:1px solid var(--sand);display:flex;align-items:center;gap:9px}
+.session-row:last-child{border-bottom:none}
+.session-date{font-size:11px;color:var(--tl);min-width:78px;flex-shrink:0}
+.session-detail{flex:1;font-size:13px;font-weight:600}
+.session-court{font-size:11px;color:var(--tl);margin-top:1px}
+
+/* ── TASK ── */
+.trow{display:flex;gap:10px;align-items:flex-start}
+.tdot{width:9px;height:9px;border-radius:50%;margin-top:4px;flex-shrink:0}
 .tinfo{flex:1}
-.tname{font-weight:700;font-size:14px}
-.tmeta{display:flex;gap:7px;margin-top:5px;align-items:center;flex-wrap:wrap}
+.tname{font-weight:700;font-size:13px}
+.tmeta{display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap}
+
+/* ── BALL RING ── */
 .ring-wrap{position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ring-lbl{position:absolute;text-align:center;pointer-events:none}
-.ring-score{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;line-height:1}
-.ring-unit{font-size:8px;color:var(--tl);text-transform:uppercase;letter-spacing:.3px}
-.ring-track{fill:none;stroke:var(--sand);stroke-width:8}
-.ring-fill{fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .6s;transform:rotate(-90deg);transform-origin:center}
-.ball-brand{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
-.ball-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
-.btag{background:var(--cream);border-radius:7px;padding:2px 7px;font-size:10px;color:var(--tl)}
-.factor-row{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--sand)}
+.ring-score{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;line-height:1}
+.ring-unit{font-size:8px;color:var(--tl);text-transform:uppercase}
+.ring-track{fill:none;stroke:var(--sand);stroke-width:7}
+.ring-fill{fill:none;stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .6s;transform:rotate(-90deg);transform-origin:center}
+.ball-brand{font-family:'Playfair Display',serif;font-size:14px;font-weight:700}
+.ball-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.btag{background:var(--cream);border-radius:6px;padding:2px 6px;font-size:10px;color:var(--tl)}
+.factor-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--sand)}
 .factor-row:last-child{border-bottom:none}
 .factor-body{flex:1}
 .factor-lbl{font-size:12px;font-weight:700}
 .factor-det{font-size:11px;color:var(--tl);margin-top:1px;line-height:1.4}
-.expand-btn{width:100%;background:none;border:1px solid var(--sand);border-radius:10px;padding:6px;font-size:12px;color:var(--tl);font-weight:700;margin-top:9px}
-.ai-box{background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:14px;margin-top:10px}
-.ai-box-title{color:#e0d0ff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.ai-box-text{color:#c8c0e8;font-size:13px;line-height:1.7;white-space:pre-wrap}
-.ai-thinking{display:flex;align-items:center;gap:8px;color:#9080c8;font-size:13px}
-.ai-dot{width:6px;height:6px;background:#9080c8;border-radius:50%;animation:pulse 1.2s ease-in-out infinite}
+.expand-btn{width:100%;background:none;border:1px solid var(--sand);border-radius:9px;padding:5px;font-size:11px;color:var(--tl);font-weight:700;margin-top:8px}
+
+/* ── AI BOX ── */
+.ai-box{background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:13px;padding:12px;margin-top:9px}
+.ai-box-title{color:#e0d0ff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.ai-box-text{color:#c8c0e8;font-size:12px;line-height:1.7;white-space:pre-wrap}
+.ai-thinking{display:flex;align-items:center;gap:7px;color:#9080c8;font-size:12px}
+.ai-dot{width:5px;height:5px;background:#9080c8;border-radius:50%;animation:pulse 1.2s ease-in-out infinite}
 .ai-dot:nth-child(2){animation-delay:.2s}.ai-dot:nth-child(3){animation-delay:.4s}
 @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}
-.slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
-.slot-btn{padding:12px 8px;border-radius:12px;font-size:12px;font-weight:700;border:2px solid var(--sand);background:var(--cream);color:var(--t);text-align:center;transition:all .15s;cursor:pointer}
-.slot-btn.sel-morning{background:#FFF8E1;border-color:#FF8F00;color:#E65100}
-.slot-btn.sel-evening{background:#E8EAF6;border-color:#5C6BC0;color:#3949AB}
-.slot-btn.sel-both{background:#F3E5F5;border-color:#AB47BC;color:#7B1FA2}
-.slot-btn.sel-post{background:#FDECEA;border-color:#E57373;color:#B73535}
-.visit-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--sand)}
-.visit-row:last-child{border-bottom:none}
-.visit-info{flex:1}
-.visit-name{font-weight:700;font-size:14px}
-.visit-detail{font-size:12px;color:var(--tl);margin-top:1px}
-.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
-.bar-label{font-size:12px;font-weight:700;width:88px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
-.bar-bg{flex:1;background:var(--sand);border-radius:4px;height:13px;overflow:hidden}
-.bar-fill{height:13px;border-radius:4px;transition:width .5s}
-.bar-val{font-size:12px;font-weight:700;color:var(--clay);width:26px;text-align:right;flex-shrink:0}
-.pay-hero{background:linear-gradient(135deg,var(--clay-d),var(--clay));color:#fff;border-radius:16px;padding:16px;margin-bottom:12px}
-.pay-hero-amt{font-family:'Playfair Display',serif;font-size:34px;font-weight:700;margin:4px 0}
+
+/* ── VISIT SLOTS ── */
+.slot-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:8px 0}
+.slot-btn{padding:11px 7px;border-radius:11px;font-size:11px;font-weight:700;border:2px solid var(--sand);background:var(--cream);color:var(--t);text-align:center;transition:all .15s;cursor:pointer}
+.sel-morning{background:#FFF8E1;border-color:#FF8F00;color:#E65100}
+.sel-evening{background:#E8EAF6;border-color:#5C6BC0;color:#3949AB}
+.sel-both{background:#F3E5F5;border-color:#AB47BC;color:#7B1FA2}
+.sel-post{background:#FDECEA;border-color:#E57373;color:#B73535}
+
+/* ── BAR CHARTS ── */
+.bar-row{display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.bar-label{font-size:11px;font-weight:700;width:80px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.bar-bg{flex:1;background:var(--sand);border-radius:3px;height:12px;overflow:hidden}
+.bar-fill{height:12px;border-radius:3px;transition:width .5s}
+.bar-val{font-size:11px;font-weight:700;color:var(--clay);width:24px;text-align:right;flex-shrink:0}
+
+/* ── MODAL ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(44,24,16,.6);z-index:500;align-items:flex-end;justify-content:center}
 .overlay.show{display:flex}
-.modal{background:var(--white);border-radius:24px 24px 0 0;padding:20px 16px 34px;width:100%;max-width:430px;max-height:90vh;overflow-y:auto}
-.modal-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;margin-bottom:14px}
-.fg{margin-bottom:12px}
-.fg label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tl);margin-bottom:4px}
-.fg input,.fg select{width:100%;padding:10px 12px;border-radius:11px;border:2px solid var(--sand);font-family:'Lato',sans-serif;font-size:14px;background:var(--cream);color:var(--t);outline:none;transition:border-color .2s;appearance:none}
-.fg input:focus,.fg select:focus{border-color:var(--clay)}
-#toast{display:none;position:fixed;top:76px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:9px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:999;white-space:nowrap;animation:slideIn .3s ease}
-@keyframes slideIn{from{opacity:0;top:56px}to{opacity:1;top:76px}}
-#fb-banner{background:#FFF9E6;border-bottom:2px solid var(--warn);padding:9px 14px;font-size:12px;color:var(--warn);font-weight:700;text-align:center;display:none}
-.divider{height:1px;background:var(--sand);margin:10px 0}
+.modal{background:var(--white);border-radius:22px 22px 0 0;padding:18px 15px 30px;width:100%;max-width:430px;max-height:90vh;overflow-y:auto}
+.modal-title{font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-bottom:12px}
+.fg{margin-bottom:11px}
+.fg label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tl);margin-bottom:3px}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 11px;border-radius:10px;border:2px solid var(--sand);font-size:13px;background:var(--cream);color:var(--t);outline:none;transition:border-color .2s;appearance:none}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--clay)}
+.fg textarea{resize:vertical;min-height:70px}
+
+/* ── SETTINGS ── */
+.setting-row{display:flex;justify-content:space-between;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--sand)}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-weight:700;font-size:13px}
+.setting-sub{font-size:11px;color:var(--tl);margin-top:2px}
+.setting-val{font-size:12px;color:var(--clay);font-weight:700;text-align:right;max-width:160px;word-break:break-all}
+
+/* ── MISC ── */
+.pay-hero{background:linear-gradient(135deg,var(--clay-d),var(--clay));color:#fff;border-radius:14px;padding:14px;margin-bottom:11px}
+.pay-hero-amt{font-family:'Playfair Display',serif;font-size:32px;font-weight:700;margin:3px 0}
+#toast{display:none;position:fixed;top:72px;left:50%;transform:translateX(-50%);background:var(--green);color:#fff;padding:8px 18px;border-radius:20px;font-size:12px;font-weight:700;z-index:999;white-space:nowrap;animation:slideIn .3s ease;max-width:90vw;text-align:center}
+@keyframes slideIn{from{opacity:0;top:52px}to{opacity:1;top:72px}}
+.divider{height:1px;background:var(--sand);margin:9px 0}
 .dim{opacity:.5}
+.info-box{background:var(--cream);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--tm);line-height:1.6;border-left:3px solid var(--clay)}
 </style>
 </head>
 <body>
-
-<div id="fb-banner">⚠️ Firebase not configured — running on local data. Add your config to enable sync.</div>
 <div id="app">
   <header>
     <div class="h-row">
-      <div><div class="h-title">🎾 Clay Court<br>Manager</div><div class="h-sub">Club Management System</div></div>
-      <div class="h-badge" id="hbadge">Loading…</div>
+      <div>
+        <div class="h-title">🎾 Clay Court Manager</div>
+        <div class="h-sub">Club Management System</div>
+      </div>
+      <div class="h-right">
+        <div class="h-badge" id="hbadge">Loading…</div>
+        <div id="sync-status"><span class="sync-dot sync-off" id="sync-dot"></span><span id="sync-txt">Local</span></div>
+      </div>
     </div>
   </header>
   <div id="toast"></div>
@@ -183,6 +259,7 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
   <div class="content" id="page-members"     style="display:none"></div>
   <div class="content" id="page-maintenance" style="display:none"></div>
   <div class="content" id="page-payments"    style="display:none"></div>
+  <div class="content" id="page-settings"    style="display:none"></div>
   <nav>
     <button class="nb active" data-tab="dashboard">  <span class="ni">🏠</span>Home</button>
     <button class="nb"        data-tab="courts">      <span class="ni">🎾</span>Courts</button>
@@ -190,25 +267,34 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <button class="nb"        data-tab="visits">      <span class="ni">📋</span>Visits</button>
     <button class="nb"        data-tab="members">     <span class="ni">👥</span>Members</button>
     <button class="nb"        data-tab="maintenance"> <span class="ni">🔧</span>Tasks</button>
-    <button class="nb"        data-tab="payments">    <span class="ni">💳</span>Pay</button>
+    <button class="nb"        data-tab="settings">    <span class="ni">⚙️</span>Settings</button>
   </nav>
 </div>
 
-<!-- MODALS -->
+<!-- ═══════════ MODALS ═══════════ -->
+
+<!-- Add / Edit Member -->
 <div class="overlay" id="m-member">
   <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title">➕ Add Member</div>
+    <div class="modal-title" id="m-member-title">➕ Add Member</div>
+    <input type="hidden" id="mb-id">
     <div class="fg"><label>Full Name</label><input id="mb-name" placeholder="e.g. Rafael Nadal"></div>
     <div class="fg"><label>Email</label><input id="mb-email" type="email" placeholder="email@example.com"></div>
     <div class="fg"><label>Phone</label><input id="mb-phone" placeholder="+1 234 567890"></div>
-    <div class="fg"><label>Plan</label><select id="mb-plan"><option>Monthly</option><option>Annual</option><option>Weekly</option></select></div>
-    <div class="flex-row" style="margin-top:14px">
+    <div class="fg"><label>Membership Plan</label>
+      <select id="mb-plan"><option>Monthly</option><option>Annual</option><option>Weekly</option></select></div>
+    <div class="fg"><label>Status</label>
+      <select id="mb-status"><option>Active</option><option>Inactive</option></select></div>
+    <div class="fg"><label>Payment Status</label>
+      <select id="mb-paid"><option value="true">Paid</option><option value="false">Owes</option></select></div>
+    <div class="flex-row" style="margin-top:13px">
       <button class="btn bs" style="flex:1" onclick="closeModal('m-member')">Cancel</button>
-      <button class="btn bp" style="flex:1" onclick="saveMember()">Add Member</button>
+      <button class="btn bp" style="flex:1" id="mb-save-btn" onclick="saveMember()">Add Member</button>
     </div>
   </div>
 </div>
 
+<!-- Log Visit -->
 <div class="overlay" id="m-visit">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">📋 Log Court Visit</div>
@@ -217,74 +303,109 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
     <div class="fg"><label>Date</label><input id="vt-date" type="date"></div>
     <div class="fg"><label>Time Slot</label>
       <div class="slot-grid">
-        <div class="slot-btn" id="slot-morning" onclick="selectSlot('Morning')">🌅 Morning<br><span style="font-size:10px;font-weight:400">6am – 12pm</span></div>
-        <div class="slot-btn" id="slot-evening" onclick="selectSlot('Evening')">🌆 Evening<br><span style="font-size:10px;font-weight:400">5pm – 9pm</span></div>
-        <div class="slot-btn" id="slot-both"    onclick="selectSlot('Both')">🌞🌆 Both<br><span style="font-size:10px;font-weight:400">Full Day</span></div>
-        <div class="slot-btn" id="slot-post"    onclick="selectSlot('Post Hours')">🌙 Post Hours<br><span style="font-size:10px;font-weight:400">After 9pm</span></div>
+        <div class="slot-btn" id="slot-morning" onclick="selectSlot('Morning')">🌅 Morning<br><small>6am – 12pm</small></div>
+        <div class="slot-btn" id="slot-evening" onclick="selectSlot('Evening')">🌆 Evening<br><small>5pm – 9pm</small></div>
+        <div class="slot-btn" id="slot-both"    onclick="selectSlot('Both')">🌞 Full Day<br><small>Morning + Evening</small></div>
+        <div class="slot-btn" id="slot-post"    onclick="selectSlot('Post Hours')">🌙 Post Hours<br><small>After 9pm</small></div>
       </div>
     </div>
-    <input type="hidden" id="vt-slot" value="">
-    <div class="flex-row" style="margin-top:14px">
+    <div class="fg"><label>Notes (optional)</label><input id="vt-notes" placeholder="e.g. Match play, doubles…"></div>
+    <input type="hidden" id="vt-slot">
+    <div class="flex-row" style="margin-top:13px">
       <button class="btn bs" style="flex:1" onclick="closeModal('m-visit')">Cancel</button>
       <button class="btn bp" style="flex:1" onclick="saveVisit()">Log Visit</button>
     </div>
   </div>
 </div>
 
+<!-- Log Watering -->
+<div class="overlay" id="m-water">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">💧 Log Watering</div>
+    <input type="hidden" id="wt-court-id">
+    <div class="fg"><label>Court</label><input id="wt-court-name" readonly style="background:#f0ebe3;color:var(--tl)"></div>
+    <div class="fg"><label>Date</label><input id="wt-date" type="date"></div>
+    <div class="fg"><label>Time</label><input id="wt-time" type="time"></div>
+    <div class="fg"><label>Duration (minutes)</label>
+      <select id="wt-duration">
+        <option value="5">5 min</option><option value="10">10 min</option>
+        <option value="15" selected>15 min</option><option value="20">20 min</option>
+        <option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option>
+      </select></div>
+    <div class="fg"><label>Water Amount (litres)</label>
+      <select id="wt-litres">
+        <option value="50">~50 L</option><option value="100" selected>~100 L</option>
+        <option value="150">~150 L</option><option value="200">~200 L</option>
+        <option value="300">~300 L</option><option value="400">~400 L</option>
+      </select></div>
+    <div class="fg"><label>Method</label>
+      <select id="wt-method">
+        <option>Sprinkler</option><option>Manual hose</option>
+        <option>Drip irrigation</option><option>Water truck</option>
+      </select></div>
+    <div class="fg"><label>Notes (optional)</label>
+      <textarea id="wt-notes" placeholder="e.g. Pre-match prep, post-rain top-up…"></textarea></div>
+    <div class="flex-row" style="margin-top:13px">
+      <button class="btn bs" style="flex:1" onclick="closeModal('m-water')">Cancel</button>
+      <button class="btn bp" style="flex:1" onclick="saveWatering()">Save Watering Log</button>
+    </div>
+  </div>
+</div>
+
+<!-- Schedule Task -->
 <div class="overlay" id="m-task">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">🔧 Schedule Task</div>
     <div class="fg"><label>Task</label><input id="tk-task" placeholder="e.g. Surface leveling"></div>
     <div class="fg"><label>Court</label><select id="tk-court"></select></div>
     <div class="fg"><label>Date</label><input id="tk-date" type="date"></div>
-    <div class="fg"><label>Priority</label><select id="tk-prio"><option>High</option><option>Medium</option><option>Low</option></select></div>
-    <div class="flex-row" style="margin-top:14px">
+    <div class="fg"><label>Priority</label>
+      <select id="tk-prio"><option>High</option><option>Medium</option><option>Low</option></select></div>
+    <div class="flex-row" style="margin-top:13px">
       <button class="btn bs" style="flex:1" onclick="closeModal('m-task')">Cancel</button>
       <button class="btn bp" style="flex:1" onclick="saveTask()">Schedule</button>
     </div>
   </div>
 </div>
 
+<!-- Open Ball Set -->
 <div class="overlay" id="m-balls">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title">🎾 Open New Ball Set</div>
     <div class="fg"><label>Brand / Model</label><input id="bl-brand" placeholder="e.g. Babolat Gold Clay"></div>
     <div class="fg"><label>Court</label><select id="bl-court"></select></div>
-    <div class="fg"><label>Ball Type</label><select id="bl-type"><option>Clay</option><option>All-Surface</option><option>Pressureless</option></select></div>
-    <div class="fg"><label>Weather</label><select id="bl-weather"><option>Clear / Sunny</option><option>Cloudy</option><option>Windy</option><option>Rainy / Wet</option><option>Hot &amp; Dry</option></select></div>
-    <div class="fg"><label>Temperature</label><select id="bl-temp"><option>Cold (&lt;10°C)</option><option selected>Mild (10–30°C)</option><option>Hot (&gt;30°C)</option></select></div>
-    <div class="fg"><label>Climate Zone</label><select id="bl-climate"><option>Temperate</option><option>Mediterranean</option><option>Continental</option><option>Tropical / Humid</option><option>Arid / Desert</option></select></div>
-    <div class="flex-row" style="margin-top:14px">
+    <div class="fg"><label>Ball Type</label>
+      <select id="bl-type"><option>Clay</option><option>All-Surface</option><option>Pressureless</option></select></div>
+    <div class="info-box" style="margin-bottom:11px">🌍 Weather &amp; climate will be fetched automatically from the court's location (set in Settings). You can override below.</div>
+    <div class="fg"><label>Override Weather (optional)</label>
+      <select id="bl-weather"><option value="">Auto (from location)</option><option>Clear / Sunny</option><option>Cloudy</option><option>Windy</option><option>Rainy / Wet</option><option>Hot &amp; Dry</option></select></div>
+    <div class="fg"><label>Override Temperature</label>
+      <select id="bl-temp"><option value="">Auto</option><option>Cold (&lt;10°C)</option><option>Mild (10–30°C)</option><option>Hot (&gt;30°C)</option></select></div>
+    <div class="flex-row" style="margin-top:13px">
       <button class="btn bs" style="flex:1" onclick="closeModal('m-balls')">Cancel</button>
       <button class="btn bp" style="flex:1" onclick="saveBallSet()">Open Set</button>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="m-ballcond">
+<!-- Member Visit Summary -->
+<div class="overlay" id="m-member-summary">
   <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-title">🌤 Update Conditions</div>
-    <input type="hidden" id="bc-id">
-    <div class="fg"><label>Weather</label><select id="bc-weather"><option>Clear / Sunny</option><option>Cloudy</option><option>Windy</option><option>Rainy / Wet</option><option>Hot &amp; Dry</option></select></div>
-    <div class="fg"><label>Temperature</label><select id="bc-temp"><option>Cold (&lt;10°C)</option><option>Mild (10–30°C)</option><option>Hot (&gt;30°C)</option></select></div>
-    <div class="fg"><label>Climate Zone</label><select id="bc-climate"><option>Temperate</option><option>Mediterranean</option><option>Continental</option><option>Tropical / Humid</option><option>Arid / Desert</option></select></div>
-    <div class="flex-row" style="margin-top:14px">
-      <button class="btn bs" style="flex:1" onclick="closeModal('m-ballcond')">Cancel</button>
-      <button class="btn bp" style="flex:1" onclick="updateBallConditions()">Update</button>
-    </div>
+    <div id="member-summary-content"></div>
+    <button class="btn bs full" onclick="closeModal('m-member-summary')">Close</button>
   </div>
 </div>
 
 <script>
 // ══════════════════════════════════════════════════════
-// SEED DATA — pre-loaded so courts always display
+// SEED DATA
 // ══════════════════════════════════════════════════════
-const SEED={
+const SEED = {
   courts:{
-    c1:{id:"c1",name:"Court 1",active:true, watered:false,lastWatered:null,humidity:62,humidityAt:"—"},
-    c2:{id:"c2",name:"Court 2",active:true, watered:false,lastWatered:null,humidity:55,humidityAt:"—"},
-    c3:{id:"c3",name:"Court 3",active:true, watered:false,lastWatered:null,humidity:71,humidityAt:"—"},
-    c4:{id:"c4",name:"Court 4",active:false,watered:false,lastWatered:null,humidity:58,humidityAt:"—"},
+    c1:{id:"c1",name:"Court 1",active:true, watered:false,humidity:62,humidityAt:"—",city:"Barcelona",climate:"Mediterranean",weather:"Clear / Sunny",tempC:22,weatherIcon:"☀️",weatherUpdated:null},
+    c2:{id:"c2",name:"Court 2",active:true, watered:false,humidity:55,humidityAt:"—",city:"Rome",     climate:"Mediterranean",weather:"Cloudy",       tempC:18,weatherIcon:"⛅",weatherUpdated:null},
+    c3:{id:"c3",name:"Court 3",active:true, watered:false,humidity:71,humidityAt:"—",city:"Miami",    climate:"Tropical / Humid",weather:"Hot & Dry",  tempC:31,weatherIcon:"🌤",weatherUpdated:null},
+    c4:{id:"c4",name:"Court 4",active:false,watered:false,humidity:58,humidityAt:"—",city:"Paris",    climate:"Continental",   weather:"Cloudy",       tempC:15,weatherIcon:"🌥",weatherUpdated:null},
   },
   members:{
     m1:{id:"m1",name:"Matteo Rossi",  email:"matteo@example.com", phone:"+39 333 1234567",plan:"Monthly",status:"Active",  joined:"2024-01-15",paid:true},
@@ -305,82 +426,135 @@ const SEED={
     p4:{id:"p4",member:"Amélie Dubois", amount:800,plan:"Annual", date:"2025-11-20",status:"Paid"},
   },
   balls:{
-    b1:{id:"b1",court:"Court 1",brand:"Wilson US Open",  openedDate:"2025-02-10",ageDays:12,sessions:3,temperature:"Mild (10–30°C)",weather:"Clear / Sunny",climate:"Mediterranean",replaced:false},
-    b2:{id:"b2",court:"Court 2",brand:"Babolat Gold",    openedDate:"2025-02-05",ageDays:17,sessions:6,temperature:"Mild (10–30°C)",weather:"Cloudy",       climate:"Mediterranean",replaced:false},
-    b3:{id:"b3",court:"Court 3",brand:"Dunlop Fort Clay",openedDate:"2025-01-28",ageDays:25,sessions:9,temperature:"Hot (>30°C)",   weather:"Clear / Sunny",climate:"Tropical / Humid",replaced:false},
+    b1:{id:"b1",court:"Court 1",brand:"Wilson US Open",  openedDate:"2025-02-10",ageDays:12,sessions:3,replaced:false},
+    b2:{id:"b2",court:"Court 2",brand:"Babolat Gold",    openedDate:"2025-02-05",ageDays:17,sessions:6,replaced:false},
+    b3:{id:"b3",court:"Court 3",brand:"Dunlop Fort Clay",openedDate:"2025-01-28",ageDays:25,sessions:9,replaced:false},
   },
   visits:{
-    v1:{id:"v1",member:"Matteo Rossi",  court:"Court 1",date:"2025-02-01",slot:"Morning"},
-    v2:{id:"v2",member:"Lucia Ferretti",court:"Court 2",date:"2025-02-01",slot:"Evening"},
-    v3:{id:"v3",member:"Matteo Rossi",  court:"Court 1",date:"2025-02-03",slot:"Both"},
-    v4:{id:"v4",member:"Carlos Mendez", court:"Court 3",date:"2025-02-05",slot:"Morning"},
-    v5:{id:"v5",member:"Lucia Ferretti",court:"Court 1",date:"2025-02-08",slot:"Post Hours"},
-    v6:{id:"v6",member:"Carlos Mendez", court:"Court 2",date:"2025-02-10",slot:"Evening"},
-    v7:{id:"v7",member:"Matteo Rossi",  court:"Court 3",date:"2025-02-12",slot:"Morning"},
-    v8:{id:"v8",member:"Lucia Ferretti",court:"Court 1",date:"2025-02-15",slot:"Both"},
+    v1:{id:"v1",member:"Matteo Rossi",  court:"Court 1",date:"2025-02-01",slot:"Morning",notes:""},
+    v2:{id:"v2",member:"Lucia Ferretti",court:"Court 2",date:"2025-02-01",slot:"Evening",notes:""},
+    v3:{id:"v3",member:"Matteo Rossi",  court:"Court 1",date:"2025-02-03",slot:"Both",   notes:"Match play"},
+    v4:{id:"v4",member:"Carlos Mendez", court:"Court 3",date:"2025-02-05",slot:"Morning",notes:""},
+    v5:{id:"v5",member:"Lucia Ferretti",court:"Court 1",date:"2025-02-08",slot:"Post Hours",notes:"Night match"},
+    v6:{id:"v6",member:"Carlos Mendez", court:"Court 2",date:"2025-02-10",slot:"Evening",notes:""},
+    v7:{id:"v7",member:"Matteo Rossi",  court:"Court 3",date:"2025-02-12",slot:"Morning",notes:"Coaching"},
+    v8:{id:"v8",member:"Lucia Ferretti",court:"Court 1",date:"2025-02-15",slot:"Both",   notes:""},
+  },
+  waterLogs:{},
+  settings:{
+    owmKey:"",  // OpenWeatherMap API key
   }
 };
 
-// Live state — pre-filled with seed (courts ALWAYS available)
-let courts=Object.assign({},SEED.courts);
-let members=Object.assign({},SEED.members);
-let maintenance=Object.assign({},SEED.maintenance);
-let payments=Object.assign({},SEED.payments);
-let balls=Object.assign({},SEED.balls);
-let visits=Object.assign({},SEED.visits);
-let activeTab="dashboard",expandedBall=null,selectedSlot="",fbReady=false,aiCache={};
+// ══════════════════════════════════════════════════════
+// LIVE STATE  (seeded immediately so UI is never empty)
+// ══════════════════════════════════════════════════════
+let courts      = deepClone(SEED.courts);
+let members     = deepClone(SEED.members);
+let maintenance = deepClone(SEED.maintenance);
+let payments    = deepClone(SEED.payments);
+let balls       = deepClone(SEED.balls);
+let visits      = deepClone(SEED.visits);
+let waterLogs   = {};
+let settings    = deepClone(SEED.settings);
+
+let activeTab     = "dashboard";
+let expandedBall  = null;
+let selectedSlot  = "";
+let fbReady       = false;
+let aiCache       = {};
+let memberView    = null; // member id for summary view
+
+function deepClone(o){ return JSON.parse(JSON.stringify(o)); }
 
 // ══════════════════════════════════════════════════════
-// FIREBASE BOOTSTRAP
+// FIREBASE  — robust setup with sync indicator
 // ══════════════════════════════════════════════════════
-window.addEventListener("firebase-ready",()=>{
-  fbReady=true;
-  const db=window._db,r=window._ref,ov=window._onValue;
-  const listen=(path,setter,seedKey)=>{
-    ov(r(db,path),snap=>{
-      if(snap.exists()){setter(snap.val());}
-      else{window._set(r(db,path),SEED[seedKey]);}
+function setSyncStatus(state, msg){
+  const dot = document.getElementById("sync-dot");
+  const txt = document.getElementById("sync-txt");
+  if(!dot||!txt) return;
+  dot.className = "sync-dot sync-"+state;
+  txt.textContent = msg;
+}
+
+window.addEventListener("firebase-ready", () => {
+  fbReady = true;
+  setSyncStatus("ok","Syncing…");
+
+  const db=window._db, r=window._ref, ov=window._onValue;
+
+  // Each listener: if key exists in Firebase → use it, else write seed
+  const listen = (path, setter, seedKey) => {
+    ov(r(db,path), snap => {
+      if(snap.exists()){
+        setter(snap.val());
+      } else {
+        // Only seed if we have seed data for this key
+        if(SEED[seedKey] && Object.keys(SEED[seedKey]).length > 0){
+          window._set(r(db,path), SEED[seedKey]);
+        }
+      }
+      setSyncStatus("ok","Live ✓");
       render();
+    }, err => {
+      console.error("Firebase read error:", err);
+      setSyncStatus("err","Sync error");
     });
   };
-  listen("club/courts",   v=>{courts=v;},      "courts");
-  listen("club/members",  v=>{members=v;},     "members");
-  listen("club/maintenance",v=>{maintenance=v;},"maintenance");
-  listen("club/payments", v=>{payments=v;},    "payments");
-  listen("club/balls",    v=>{balls=v;},       "balls");
-  listen("club/visits",   v=>{visits=v;},      "visits");
+
+  listen("club/courts",      v=>{courts=v;},      "courts");
+  listen("club/members",     v=>{members=v;},     "members");
+  listen("club/maintenance", v=>{maintenance=v;}, "maintenance");
+  listen("club/payments",    v=>{payments=v;},    "payments");
+  listen("club/balls",       v=>{balls=v;},       "balls");
+  listen("club/visits",      v=>{visits=v;},      "visits");
+  listen("club/waterLogs",   v=>{waterLogs=v||{};},  "waterLogs");
+  listen("club/settings",    v=>{settings=v||deepClone(SEED.settings);}, "settings");
 });
 
-// Render immediately — courts always show from seed
-document.addEventListener("DOMContentLoaded",()=>{
+// Render immediately from seed — courts always visible
+document.addEventListener("DOMContentLoaded", () => {
   render();
-  setTimeout(()=>{if(!fbReady)document.getElementById("fb-banner").style.display="block";},3000);
+  setTimeout(() => {
+    if(!window._fbConfigured){
+      setSyncStatus("off","Local only");
+    }
+  }, 2500);
 });
 
 // ══════════════════════════════════════════════════════
-// DB WRITE HELPERS
+// DB HELPERS
 // ══════════════════════════════════════════════════════
-function dbSet(p,v){if(fbReady)window._set(window._ref(window._db,p),v);}
-function dbUpdate(p,v){if(fbReady)window._update(window._ref(window._db,p),v);}
+function dbSet(path, val){
+  if(!fbReady) return;
+  window._set(window._ref(window._db, path), val);
+}
+function dbUpdate(path, val){
+  if(!fbReady) return;
+  window._update(window._ref(window._db, path), val);
+}
 
 // ══════════════════════════════════════════════════════
 // UTILITY
 // ══════════════════════════════════════════════════════
-const arr=o=>o?Object.values(o):[];
-const now=()=>new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-const today=()=>new Date().toISOString().slice(0,10);
-const uid=()=>"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-const initials=n=>n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
-const curMonth=()=>new Date().toISOString().slice(0,7);
+const arr     = o => o ? Object.values(o) : [];
+const nowT    = () => new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+const today   = () => new Date().toISOString().slice(0,10);
+const curMonth= () => new Date().toISOString().slice(0,7);
+const uid     = () => "i"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const initials= n  => n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+const monthLabel = m => new Date(m+"-15").toLocaleString("default",{month:"long",year:"numeric"});
 
 function toast(msg){
   const el=document.getElementById("toast");
-  el.textContent=msg;el.style.display="block";
-  clearTimeout(el._t);el._t=setTimeout(()=>el.style.display="none",2500);
+  el.textContent=msg; el.style.display="block";
+  clearTimeout(el._t); el._t=setTimeout(()=>el.style.display="none",2800);
 }
-function openModal(id){document.getElementById(id).classList.add("show");}
-function closeModal(id){document.getElementById(id).classList.remove("show");}
-document.querySelectorAll(".overlay").forEach(el=>el.addEventListener("click",()=>el.classList.remove("show")));
+function openModal(id) { document.getElementById(id).classList.add("show"); }
+function closeModal(id){ document.getElementById(id).classList.remove("show"); }
+document.querySelectorAll(".overlay").forEach(el =>
+  el.addEventListener("click",()=>el.classList.remove("show")));
 
 // ══════════════════════════════════════════════════════
 // NAVIGATION
@@ -395,101 +569,210 @@ document.querySelectorAll(".nb").forEach(btn=>{
     render();
   });
 });
-function switchTab(t){document.querySelector(`[data-tab="${t}"]`).click();}
+function switchTab(t){ document.querySelector(`[data-tab="${t}"]`).click(); }
 
 // ══════════════════════════════════════════════════════
-// BALL HEALTH ENGINE
+// WEATHER API  (OpenWeatherMap)
 // ══════════════════════════════════════════════════════
-function computeHealth(ball,humidity){
-  let life=8;const factors=[];const h=humidity||60;
-  if(h>80){life*=.55;factors.push({icon:"💧",lbl:"Humidity",val:`${h}%`,det:"Very high — felt absorbs moisture, balls go dead fast",sev:"high"});}
-  else if(h>65){life*=.75;factors.push({icon:"💧",lbl:"Humidity",val:`${h}%`,det:"High — felt swells, balls become heavy & slow",sev:"medium"});}
-  else if(h<30){life*=.80;factors.push({icon:"🏜",lbl:"Humidity",val:`${h}%`,det:"Very dry — pressure leaks faster through porous felt",sev:"medium"});}
-  else{factors.push({icon:"✅",lbl:"Humidity",val:`${h}%`,det:"Optimal humidity for ball longevity",sev:"ok"});}
-  if(ball.temperature==="Hot (>30°C)"){life*=.82;factors.push({icon:"🌡",lbl:"Temperature",val:ball.temperature,det:"High temp — internal pressure spikes, rubber ages faster",sev:"medium"});}
-  else if(ball.temperature==="Cold (<10°C)"){life*=.78;factors.push({icon:"❄",lbl:"Temperature",val:ball.temperature,det:"Cold — balls lose bounce & pressure quickly",sev:"medium"});}
-  else{factors.push({icon:"🌡",lbl:"Temperature",val:ball.temperature,det:"Moderate temp — ideal pressure stability",sev:"ok"});}
-  if(ball.weather==="Rainy / Wet"){life*=.50;factors.push({icon:"🌧",lbl:"Weather",val:ball.weather,det:"Wet conditions — balls absorb water and degrade rapidly",sev:"high"});}
-  else if(ball.weather==="Windy"){life*=.88;factors.push({icon:"💨",lbl:"Weather",val:ball.weather,det:"Wind causes extra abrasion from unpredictable bounces",sev:"low"});}
-  else{factors.push({icon:"☀",lbl:"Weather",val:ball.weather,det:"No significant weather impact on wear",sev:"ok"});}
-  if(ball.climate==="Tropical / Humid"){life*=.72;factors.push({icon:"🌴",lbl:"Climate",val:ball.climate,det:"Persistent ambient moisture degrades balls continuously",sev:"high"});}
-  else if(ball.climate==="Continental"){life*=.92;factors.push({icon:"🌲",lbl:"Climate",val:ball.climate,det:"Seasonal pressure variation — slight modifier",sev:"low"});}
-  else if(ball.climate==="Arid / Desert"){life*=.80;factors.push({icon:"🌵",lbl:"Climate",val:ball.climate,det:"Extreme dryness causes faster pressure bleed",sev:"medium"});}
-  else if(ball.climate==="Mediterranean"){factors.push({icon:"🌅",lbl:"Climate",val:ball.climate,det:"Excellent conditions for ball longevity",sev:"ok"});}
-  else{factors.push({icon:"🌍",lbl:"Climate",val:ball.climate,det:"Temperate — standard wear",sev:"ok"});}
-  // Court traffic factor from visit data
-  const cvm=arr(visits).filter(v=>v.court===ball.court&&v.date&&v.date.startsWith(curMonth())).length;
+const wxCache = {};
+
+async function fetchWeather(courtId){
+  const court = courts[courtId];
+  if(!court || !court.city) return;
+  const key = settings.owmKey || "";
+  if(!key){ toast("⚠️ Add OpenWeatherMap API key in Settings"); return; }
+
+  const city = encodeURIComponent(court.city);
+  const url  = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${key}&units=metric`;
+
+  try {
+    const res  = await fetch(url);
+    if(!res.ok){ toast("❌ Weather fetch failed: "+res.statusText); return; }
+    const data = await res.json();
+
+    const humidity = data.main.humidity;
+    const tempC    = Math.round(data.main.temp);
+    const wDesc    = data.weather[0].main;
+    const wxIcon   = wxEmoji(wDesc);
+    const climate  = court.climate || guessClimate(tempC, humidity);
+
+    // Derive temperature band
+    const tempBand = tempC < 10 ? "Cold (<10°C)" : tempC > 30 ? "Hot (>30°C)" : "Mild (10–30°C)";
+    // Derive weather string
+    const weather  = wxString(wDesc);
+
+    const update = {
+      humidity, humidityAt: nowT(), tempC, weather, weatherIcon: wxIcon,
+      weatherUpdated: new Date().toLocaleString(), climate
+    };
+
+    courts[courtId] = {...courts[courtId], ...update};
+    dbUpdate(`club/courts/${courtId}`, update);
+    toast(`🌤 ${court.name}: ${humidity}% humidity, ${tempC}°C`);
+    render();
+  } catch(e){
+    toast("❌ Weather error: "+e.message);
+  }
+}
+
+function wxEmoji(main){
+  const m = main.toLowerCase();
+  if(m.includes("rain")||m.includes("drizzle")) return "🌧";
+  if(m.includes("thunder")) return "⛈";
+  if(m.includes("snow"))    return "❄️";
+  if(m.includes("cloud"))   return "⛅";
+  if(m.includes("mist")||m.includes("fog")) return "🌫";
+  if(m.includes("wind"))    return "💨";
+  return "☀️";
+}
+function wxString(main){
+  const m = main.toLowerCase();
+  if(m.includes("rain")||m.includes("drizzle")) return "Rainy / Wet";
+  if(m.includes("wind")) return "Windy";
+  if(m.includes("cloud")) return "Cloudy";
+  if(m.includes("clear")) return "Clear / Sunny";
+  if(m.includes("hot")||m.includes("haze")) return "Hot & Dry";
+  return "Clear / Sunny";
+}
+function guessClimate(tempC, humidity){
+  if(humidity>75 && tempC>25) return "Tropical / Humid";
+  if(tempC>28 && humidity<40) return "Arid / Desert";
+  if(tempC>=18 && tempC<=28 && humidity<65) return "Mediterranean";
+  if(tempC<15) return "Continental";
+  return "Temperate";
+}
+
+// Fetch weather for all active courts
+async function refreshAllWeather(){
+  const active = arr(courts).filter(c=>c.active && c.city);
+  if(!settings.owmKey){ toast("⚠️ Add OpenWeatherMap API key in Settings"); return; }
+  toast("🌐 Fetching live weather for all courts…");
+  for(const c of active){ await fetchWeather(c.id); }
+}
+
+// ══════════════════════════════════════════════════════
+// BALL HEALTH ENGINE  — uses live court weather/humidity
+// ══════════════════════════════════════════════════════
+function computeHealth(ball){
+  const court   = arr(courts).find(c=>c.name===ball.court) || {};
+  const humidity= court.humidity || 60;
+  const weather = court.weather  || ball.weather || "Clear / Sunny";
+  const tempC   = court.tempC    || 20;
+  const climate = court.climate  || ball.climate || "Temperate";
+  const tempBand= tempC < 10 ? "Cold (<10°C)" : tempC > 30 ? "Hot (>30°C)" : "Mild (10–30°C)";
+
+  let life = 8; const factors = [];
+
+  // Humidity — live from court
+  if(humidity>80){life*=.55;factors.push({icon:"💧",lbl:"Humidity",val:`${humidity}%`,det:"Very high — felt absorbs moisture, balls go dead fast",sev:"high"});}
+  else if(humidity>65){life*=.75;factors.push({icon:"💧",lbl:"Humidity",val:`${humidity}%`,det:"High — felt swells, balls become heavy & slow",sev:"medium"});}
+  else if(humidity<30){life*=.80;factors.push({icon:"🏜",lbl:"Humidity",val:`${humidity}%`,det:"Very dry — pressure leaks faster through porous felt",sev:"medium"});}
+  else{factors.push({icon:"✅",lbl:"Humidity",val:`${humidity}%`,det:"Optimal humidity for ball longevity",sev:"ok"});}
+
+  // Temperature — live from court
+  if(tempBand==="Hot (>30°C)"){life*=.82;factors.push({icon:"🌡",lbl:"Temperature",val:`${tempC}°C`,det:"High temp — internal pressure spikes, rubber ages faster",sev:"medium"});}
+  else if(tempBand==="Cold (<10°C)"){life*=.78;factors.push({icon:"❄",lbl:"Temperature",val:`${tempC}°C`,det:"Cold — balls lose bounce & pressure quickly",sev:"medium"});}
+  else{factors.push({icon:"🌡",lbl:"Temperature",val:`${tempC}°C`,det:"Moderate temp — ideal pressure stability",sev:"ok"});}
+
+  // Weather — live from court
+  if(weather==="Rainy / Wet"){life*=.50;factors.push({icon:"🌧",lbl:"Weather",val:weather,det:"Wet conditions — balls absorb water and degrade rapidly",sev:"high"});}
+  else if(weather==="Windy"){life*=.88;factors.push({icon:"💨",lbl:"Weather",val:weather,det:"Wind causes extra abrasion from unpredictable bounces",sev:"low"});}
+  else{factors.push({icon:"☀",lbl:"Weather",val:weather,det:"No significant weather impact on wear",sev:"ok"});}
+
+  // Climate — derived from location
+  if(climate==="Tropical / Humid"){life*=.72;factors.push({icon:"🌴",lbl:"Climate",val:climate,det:"Persistent ambient moisture degrades balls continuously",sev:"high"});}
+  else if(climate==="Continental"){life*=.92;factors.push({icon:"🌲",lbl:"Climate",val:climate,det:"Seasonal pressure variation — slight modifier",sev:"low"});}
+  else if(climate==="Arid / Desert"){life*=.80;factors.push({icon:"🌵",lbl:"Climate",val:climate,det:"Extreme dryness causes faster pressure bleed",sev:"medium"});}
+  else if(climate==="Mediterranean"){factors.push({icon:"🌅",lbl:"Climate",val:climate,det:"Excellent conditions for ball longevity",sev:"ok"});}
+  else{factors.push({icon:"🌍",lbl:"Climate",val:climate,det:"Temperate — standard wear",sev:"ok"});}
+
+  // Court traffic from visits
+  const cvm = arr(visits).filter(v=>v.court===ball.court&&v.date&&v.date.startsWith(curMonth())).length;
   if(cvm>20){life*=.80;factors.push({icon:"📊",lbl:"Court Traffic",val:`${cvm} visits/mo`,det:"Very high usage — frequent play accelerates felt wear",sev:"high"});}
   else if(cvm>10){life*=.90;factors.push({icon:"📊",lbl:"Court Traffic",val:`${cvm} visits/mo`,det:"Moderate-high usage this month",sev:"medium"});}
   else{factors.push({icon:"📊",lbl:"Court Traffic",val:`${cvm} visits/mo`,det:"Low traffic — minimal usage-based wear",sev:"ok"});}
-  // Post-hours penalty (night dew)
-  const phv=arr(visits).filter(v=>v.court===ball.court&&v.slot==="Post Hours").length;
-  if(phv>3){life*=.88;factors.push({icon:"🌙",lbl:"Post-Hours Play",val:`${phv} sessions`,det:"Night sessions expose balls to dew & temperature drops",sev:"medium"});}
+
+  // Post-hours factor
+  const phv = arr(visits).filter(v=>v.court===ball.court&&v.slot==="Post Hours").length;
+  if(phv>3){life*=.88;factors.push({icon:"🌙",lbl:"Post-Hours Play",val:`${phv} sessions`,det:"Night sessions expose balls to dew & temp drops",sev:"medium"});}
+
+  // Watering frequency factor (over-watered courts make balls heavier)
+  const recentWater = arr(waterLogs).filter(w=>w.court===ball.court).length;
+  if(recentWater>10){life*=.92;factors.push({icon:"🚿",lbl:"Watering Freq.",val:`${recentWater} logs`,det:"Frequent watering — clay moisture increases ball weight over time",sev:"low"});}
+
+  // Clay surface
   life*=.88;factors.push({icon:"🟫",lbl:"Surface",val:"Clay",det:"Clay collects on felt — adds weight, accelerates fuzz wear",sev:"low"});
+
+  // Age
   const age=ball.ageDays||0;
   if(age>21){life=Math.min(life,5);factors.push({icon:"📅",lbl:"Age",val:`${age} days`,det:"Beyond 3 weeks — natural pressure loss becomes significant",sev:"high"});}
   else if(age>14){life*=.85;factors.push({icon:"📅",lbl:"Age",val:`${age} days`,det:"Gradual pressure decline — monitor closely",sev:"medium"});}
   else{factors.push({icon:"📅",lbl:"Age",val:`${age} days`,det:"Pressure still strong — minimal age decay",sev:"ok"});}
+
   life=Math.max(Math.round(life),1);
   const pct=Math.min((ball.sessions/life)*100,100);
   const remaining=Math.max(life-ball.sessions,0);
   let condition,color,emoji,urgency;
   if(pct>=100){condition="Replace Now";color="#B73535";emoji="🔴";urgency="crit";}
-  else if(pct>=75){condition="Worn";color="#C17E0A";emoji="🟠";urgency="warn";}
-  else if(pct>=40){condition="Good";color="#6B8E23";emoji="🟡";urgency="ok";}
-  else{condition="Fresh";color="#2D7D46";emoji="🟢";urgency="fresh";}
-  return{life,pct,remaining,condition,color,emoji,urgency,score:Math.round(100-pct),factors};
+  else if(pct>=75){condition="Worn";     color="#C17E0A";emoji="🟠";urgency="warn";}
+  else if(pct>=40){condition="Good";     color="#6B8E23";emoji="🟡";urgency="ok";}
+  else{            condition="Fresh";    color="#2D7D46";emoji="🟢";urgency="fresh";}
+  return{life,pct,remaining,condition,color,emoji,urgency,score:Math.round(100-pct),factors,humidity,weather,tempC,climate};
 }
 
 // ══════════════════════════════════════════════════════
-// AI RECOMMENDATION  (Anthropic API)
+// AI RECOMMENDATION  (Claude via Anthropic API)
 // ══════════════════════════════════════════════════════
 async function getAIRecommendation(ballId){
-  const ball=balls[ballId];
-  const court=arr(courts).find(c=>c.name===ball.court)||{};
-  const health=computeHealth(ball,court.humidity);
-  const cv=arr(visits).filter(v=>v.court===ball.court);
-  const slots={Morning:0,Evening:0,Both:0,"Post Hours":0};
+  const ball   = balls[ballId];
+  const health = computeHealth(ball);
+  const court  = arr(courts).find(c=>c.name===ball.court)||{};
+  const cv     = arr(visits).filter(v=>v.court===ball.court);
+  const slots  = {Morning:0,Evening:0,Both:0,"Post Hours":0};
   cv.forEach(v=>{if(slots[v.slot]!==undefined)slots[v.slot]++;});
-  const mVisits=cv.filter(v=>v.date&&v.date.startsWith(curMonth())).length;
+  const mVis   = cv.filter(v=>v.date&&v.date.startsWith(curMonth())).length;
+  const wlogs  = arr(waterLogs).filter(w=>w.court===ball.court);
+  const totalLitres = wlogs.reduce((s,w)=>s+(Number(w.litres)||0),0);
 
-  const prompt=`You are an expert tennis equipment advisor specializing in clay court ball maintenance.
+  const prompt=`You are a professional tennis equipment advisor specializing in clay court ball maintenance.
 
-Analyze this tennis ball set and provide a precise, actionable replacement recommendation.
+Analyze this ball set comprehensively and provide a structured replacement recommendation.
 
 BALL DATA:
 - Brand: ${ball.brand} | Type: ${ball.type||"Clay"}
-- Court: ${ball.court} (Clay surface)
+- Court: ${ball.court} (Clay surface, ${court.city||"unknown location"})
 - Opened: ${ball.openedDate} | Age: ${ball.ageDays} days
 - Sessions Played: ${ball.sessions} | Health Score: ${health.score}/100
-- Current Condition: ${health.condition}
+- Current Status: ${health.condition}
 
-COURT CONDITIONS:
-- Humidity: ${court.humidity||"unknown"}% | Last Watered: ${court.lastWatered||"unknown"}
-- Weather: ${ball.weather} | Temperature: ${ball.temperature} | Climate: ${ball.climate}
+LIVE WEATHER (auto-fetched from ${court.city||"location"}):
+- Humidity: ${health.humidity}% | Temperature: ${health.tempC}°C
+- Conditions: ${health.weather} | Climate Zone: ${health.climate}
+- Last updated: ${court.weatherUpdated||"not yet fetched"}
 
-COURT VISIT DATA (${ball.court}):
-- Total visits logged: ${cv.length} | This month: ${mVisits}
-- Morning: ${slots.Morning} | Evening: ${slots.Evening} | Both: ${slots.Both} | Post-hours: ${slots["Post Hours"]}
+COURT VISIT DATA — ${ball.court}:
+- This month: ${mVis} visits | Total logged: ${cv.length}
+- Morning: ${slots.Morning} | Evening: ${slots.Evening} | Full Day: ${slots.Both} | Post-Hours: ${slots["Post Hours"]}
 
-DEGRADATION FACTORS (from analysis engine):
+WATERING DATA — ${ball.court}:
+- Total watering logs: ${wlogs.length}
+- Total water applied: ~${totalLitres}L
+- Recent sessions: ${wlogs.slice(-3).map(w=>`${w.date} (${w.litres}L, ${w.duration}min, ${w.method})`).join("; ")||"none"}
+
+DEGRADATION FACTORS FROM ENGINE:
 ${health.factors.map(f=>`- ${f.lbl} [${f.sev}]: ${f.det}`).join("\n")}
 
-Provide a structured response with these exact sections:
-1. VERDICT: Replace now / Continue (X more sessions) / Monitor closely
-2. PRIMARY CAUSE: The single biggest factor shortening ball life in these conditions
-3. NEXT ACTION: One specific, practical step the club should take today
-4. PRO TIP: One tip to extend ball life given this court's specific conditions
+Respond with exactly these 4 sections:
+1. VERDICT: Replace immediately / Continue for ~X more sessions / Monitor closely — with one sentence reasoning
+2. PRIMARY CAUSE: The single biggest factor shortening this ball set's life right now
+3. ACTION TODAY: One specific thing the club should do today
+4. LONGEVITY TIP: One watering or scheduling practice that would extend ball life on this specific court
 
-Be direct, specific, and practical. Max 6 sentences total.`;
+Max 6 sentences total. Be specific to the court's location and actual conditions.`;
 
   const boxId="ai-box-"+ballId;
-  document.getElementById(boxId).innerHTML=`
-    <div class="ai-box-title">✨ AI Advisor — Analyzing all conditions…</div>
-    <div class="ai-thinking">
-      <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
-      <span style="margin-left:4px">Reading humidity, visits, weather, climate…</span>
-    </div>`;
+  const box=document.getElementById(boxId);
+  if(box) box.innerHTML=`<div class="ai-box-title">✨ AI Advisor</div><div class="ai-thinking"><div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div><span style="margin-left:4px">Analysing live weather, visits & watering…</span></div>`;
 
   try{
     const res=await fetch("https://api.anthropic.com/v1/messages",{
@@ -502,35 +785,37 @@ Be direct, specific, and practical. Max 6 sentences total.`;
       })
     });
     const data=await res.json();
-    const text=data.content?.map(c=>c.text||"").join("")||"No response received.";
+    const text=data.content?.map(c=>c.text||"").join("")||"No response.";
     aiCache[ballId]=text;
-    document.getElementById(boxId).innerHTML=`
-      <div class="ai-box-title">✨ AI Advisor</div>
-      <div class="ai-box-text">${text}</div>`;
+    if(document.getElementById(boxId))
+      document.getElementById(boxId).innerHTML=`<div class="ai-box-title">✨ AI Advisor</div><div class="ai-box-text">${text}</div>`;
   }catch(e){
-    document.getElementById(boxId).innerHTML=`
-      <div class="ai-box-title">✨ AI Advisor</div>
-      <div class="ai-box-text" style="color:#F87171">Unable to connect. Check your network and try again.\n\n${e.message}</div>`;
+    if(document.getElementById(boxId))
+      document.getElementById(boxId).innerHTML=`<div class="ai-box-title">✨ AI Advisor</div><div class="ai-box-text" style="color:#F87171">Connection failed: ${e.message}</div>`;
   }
 }
 
 // ══════════════════════════════════════════════════════
-// RENDER
+// RENDER DISPATCHER
 // ══════════════════════════════════════════════════════
 function render(){
   const ac=arr(courts).filter(c=>c.active);
   document.getElementById("hbadge").textContent=ac.length+" Courts Active";
+
+  // Populate dropdowns
   const cOpts=ac.map(c=>`<option>${c.name}</option>`).join("");
   ["tk-court","bl-court","vt-court"].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=cOpts;});
   const mOpts=arr(members).filter(m=>m.status==="Active").map(m=>`<option>${m.name}</option>`).join("");
-  const vme=document.getElementById("vt-member");if(vme)vme.innerHTML=mOpts;
-  if(activeTab==="dashboard")renderDashboard();
-  if(activeTab==="courts")renderCourts();
-  if(activeTab==="balls")renderBalls();
-  if(activeTab==="visits")renderVisits();
-  if(activeTab==="members")renderMembers();
-  if(activeTab==="maintenance")renderMaintenance();
-  if(activeTab==="payments")renderPayments();
+  const vme=document.getElementById("vt-member"); if(vme)vme.innerHTML=mOpts;
+
+  if(activeTab==="dashboard")   renderDashboard();
+  if(activeTab==="courts")      renderCourts();
+  if(activeTab==="balls")       renderBalls();
+  if(activeTab==="visits")      renderVisits();
+  if(activeTab==="members")     renderMembers();
+  if(activeTab==="maintenance") renderMaintenance();
+  if(activeTab==="payments")    renderPayments();
+  if(activeTab==="settings")    renderSettings();
 }
 
 // ── DASHBOARD ──────────────────────────────────────────
@@ -540,33 +825,32 @@ function renderDashboard(){
   const am=arr(members).filter(m=>m.status==="Active").length;
   const op=arr(payments).filter(p=>p.status==="Overdue").length;
   const rev=arr(payments).filter(p=>p.status==="Paid").reduce((s,p)=>s+(p.amount||0),0);
-  const nr=arr(balls).filter(b=>{if(b.replaced)return false;const c=arr(courts).find(x=>x.name===b.court);return computeHealth(b,c?.humidity).urgency==="crit";}).length;
+  const nr=arr(balls).filter(b=>{if(b.replaced)return false;return computeHealth(b).urgency==="crit";}).length;
   const mv=arr(visits).filter(v=>v.date&&v.date.startsWith(curMonth())).length;
-  const dots=ac.map(c=>`<div style="flex:1;text-align:center"><div style="font-size:20px">${c.watered?"💧":"🟤"}</div><div style="font-size:9px;color:var(--tl);margin-top:2px">${c.name.replace("Court ","C")}</div></div>`).join("");
-  const alert=nr>0?`<div class="card br" style="background:#FFF9F9;margin-bottom:10px"><div style="display:flex;gap:9px;align-items:center"><div style="font-size:24px">⚠️</div><div><div style="font-weight:700;color:var(--bad);font-size:14px">${nr} Ball Set${nr>1?"s":""} Need Replacement</div><div class="sub">AI recommendations available in Balls tab</div></div></div><button class="btn bbad full" onclick="switchTab('balls')">View Ball Status →</button></div>`:"";
+  const dots=ac.map(c=>`<div style="flex:1;text-align:center"><div style="font-size:18px">${c.watered?"💧":"🟤"}</div><div style="font-size:9px;color:var(--tl);margin-top:1px">${c.name.replace("Court ","C")}</div></div>`).join("");
+  const alert=nr>0?`<div class="card br" style="background:#FFF9F9"><div style="display:flex;gap:8px;align-items:center"><div style="font-size:22px">⚠️</div><div><div style="font-weight:700;color:var(--bad);font-size:13px">${nr} Ball Set${nr>1?"s":""} Need Replacement</div><div class="sub">AI recommendations in Balls tab</div></div></div><button class="btn bbad full" onclick="switchTab('balls')">View →</button></div>`:"";
   document.getElementById("page-dashboard").innerHTML=`
     <div class="stitle">Overview</div>
-    <div class="g2" style="margin-bottom:12px">
+    <div class="g2" style="margin-bottom:10px">
       <div class="scard"><div class="sval">${am}</div><div class="slbl">Active Members</div></div>
       <div class="scard"><div class="sval" style="color:${op>0?"var(--bad)":"var(--clay)"}">${op}</div><div class="slbl">Overdue Pay</div></div>
       <div class="scard"><div class="sval" style="color:var(--green)">€${rev}</div><div class="slbl">Revenue</div></div>
-      <div class="scard"><div class="sval" style="color:var(--clay)">${mv}</div><div class="slbl">Visits This Month</div></div>
+      <div class="scard"><div class="sval" style="color:var(--clay)">${mv}</div><div class="slbl">Monthly Visits</div></div>
     </div>
-    <div class="card" style="background:linear-gradient(135deg,#E8F5E9,#F1F9F0);margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
-        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:var(--green-l)">💧 Today's Watering</div>
-        <div style="font-size:13px;color:var(--ok);font-weight:700">${wc}/${ac.length}</div>
+    <div class="card" style="background:linear-gradient(135deg,#E8F5E9,#F1F9F0)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:14px;color:var(--green-l)">💧 Today's Watering</div>
+        <div style="font-size:12px;color:var(--ok);font-weight:700">${wc}/${ac.length} courts</div>
       </div>
-      <div style="display:flex;gap:8px">${dots}</div>
-      <button class="btn bs full" style="font-size:12px;margin-top:10px" onclick="resetWatering()">🔄 Reset Daily Watering</button>
+      <div style="display:flex;gap:7px">${dots}</div>
     </div>
     ${alert}
-    <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:16px;margin:12px 0 10px">Quick Actions</div>
+    <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:15px;margin:11px 0 9px">Quick Actions</div>
     <div class="g2">
-      <button class="btn bs" style="padding:13px;flex-direction:column;display:flex;align-items:center;gap:5px;font-size:12px" onclick="openVisitModal()"><span style="font-size:20px">📋</span>Log Visit</button>
-      <button class="btn bs" style="padding:13px;flex-direction:column;display:flex;align-items:center;gap:5px;font-size:12px" onclick="openMemberModal()"><span style="font-size:20px">👤</span>Add Member</button>
-      <button class="btn bs" style="padding:13px;flex-direction:column;display:flex;align-items:center;gap:5px;font-size:12px" onclick="openBallModal()"><span style="font-size:20px">🎾</span>New Ball Set</button>
-      <button class="btn bs" style="padding:13px;flex-direction:column;display:flex;align-items:center;gap:5px;font-size:12px" onclick="openTaskModal()"><span style="font-size:20px">🔧</span>Schedule Task</button>
+      <button class="btn bs" style="padding:12px;flex-direction:column;display:flex;align-items:center;gap:4px;font-size:11px" onclick="openVisitModal()"><span style="font-size:19px">📋</span>Log Visit</button>
+      <button class="btn bs" style="padding:12px;flex-direction:column;display:flex;align-items:center;gap:4px;font-size:11px" onclick="openMemberModal()"><span style="font-size:19px">👤</span>Add Member</button>
+      <button class="btn bs" style="padding:12px;flex-direction:column;display:flex;align-items:center;gap:4px;font-size:11px" onclick="openBallModal()"><span style="font-size:19px">🎾</span>New Ball Set</button>
+      <button class="btn bs" style="padding:12px;flex-direction:column;display:flex;align-items:center;gap:4px;font-size:11px" onclick="refreshAllWeather()"><span style="font-size:19px">🌐</span>Refresh Weather</button>
     </div>`;
 }
 
@@ -577,27 +861,142 @@ function renderCourts(){
     const hb=c.humidity>=65?"var(--ok)":c.humidity>=50?"var(--warn)":"var(--bad)";
     const tv=arr(visits).filter(v=>v.court===c.name&&v.date===today()).length;
     const mv=arr(visits).filter(v=>v.court===c.name&&v.date&&v.date.startsWith(curMonth())).length;
+    // Last watering log
+    const courtWlogs = arr(waterLogs).filter(w=>w.court===c.name).sort((a,b)=>b.date.localeCompare(a.date));
+    const lastWlog   = courtWlogs[0];
+
     const inner=c.active?`
-      <div class="m2">
-        <div class="metric"><div class="ml">💧 Watered</div><div class="mv ${c.watered?"wyes":"wno"}">${c.watered?"Yes":"No"}</div>${c.lastWatered?`<div class="ms">at ${c.lastWatered}</div>`:""}</div>
-        <div class="metric"><div class="ml">💦 Humidity</div><div class="mv ${hc}">${c.humidity}%</div><div class="hbarbg"><div class="hbar" style="width:${Math.min(c.humidity,100)}%;background:${hb}"></div></div></div>
-        <div class="metric"><div class="ml">👥 Today Visits</div><div class="mv" style="color:var(--clay)">${tv}</div></div>
-        <div class="metric"><div class="ml">📅 Month Visits</div><div class="mv" style="color:var(--clay)">${mv}</div></div>
+      <!-- Live weather row -->
+      <div class="wx-row">
+        <div class="wx-chip">${c.weatherIcon||"🌡"} ${c.tempC||"—"}°C</div>
+        <div class="wx-chip">💦 ${c.humidity}% RH</div>
+        <div class="wx-chip">${c.weather||"—"}</div>
+        <div class="wx-chip">🌍 ${c.climate||"—"}</div>
       </div>
-      <div style="font-size:11px;color:var(--tl);margin-bottom:10px">Humidity checked: ${c.humidityAt||"—"}</div>
+      <div class="m2">
+        <div class="metric">
+          <div class="ml">📍 Location</div>
+          <div style="font-size:13px;font-weight:700;color:var(--clay-d);margin-top:2px">${c.city||"Not set"}</div>
+          <div class="ms">${c.weatherUpdated?"Updated: "+c.weatherUpdated.slice(0,16):"No weather fetch yet"}</div>
+        </div>
+        <div class="metric">
+          <div class="ml">💦 Humidity</div>
+          <div class="mv ${hc}">${c.humidity}%</div>
+          <div class="hbarbg"><div class="hbar" style="width:${Math.min(c.humidity,100)}%;background:${hb}"></div></div>
+        </div>
+        <div class="metric">
+          <div class="ml">👥 Today / Month</div>
+          <div class="mv" style="color:var(--clay)">${tv}</div>
+          <div class="ms">${mv} this month</div>
+        </div>
+        <div class="metric">
+          <div class="ml">💧 Last Watering</div>
+          <div style="font-size:12px;font-weight:700;color:${c.watered?"var(--ok)":"var(--warn)"};margin-top:2px">
+            ${c.watered?"Today ✓":"Not yet today"}
+          </div>
+          <div class="ms">${lastWlog?lastWlog.date+" · "+lastWlog.litres+"L":"No logs yet"}</div>
+        </div>
+      </div>
       <div class="flex-row">
-        <button class="btn ${c.watered?"bs":"bok"}" style="flex:1;font-size:12px" ${c.watered?"disabled":""} onclick="waterCourt('${c.id}')">${c.watered?"✓ Watered":"💧 Water Now"}</button>
-        <button class="btn bs" style="flex:1;font-size:12px" onclick="refreshHumidity('${c.id}')">📡 Humidity</button>
-      </div>`:"";
-    return`<div class="card court-card"><div class="crow"><div class="cname">${c.name}</div><span class="badge ${c.active?"b-ok":"b-warn"}">${c.active?"● Active":"○ Inactive"}</span></div>${inner}<div class="divider"></div><button class="btn ${c.active?"bbad":"bok"}" style="width:100%;font-size:12px" onclick="toggleCourt('${c.id}')">${c.active?"Close Court":"Open Court"}</button></div>`;
+        <button class="btn bp" style="flex:1;font-size:11px" onclick="openWaterModal('${c.id}')">💧 Log Watering</button>
+        <button class="btn bs" style="flex:1;font-size:11px" onclick="fetchWeather('${c.id}')">🌐 Live Weather</button>
+      </div>
+      ${courtWlogs.length>0?`
+        <div style="margin-top:10px">
+          <div style="font-weight:700;font-size:12px;color:var(--tl);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Recent Watering Logs</div>
+          ${courtWlogs.slice(0,3).map(w=>`
+            <div class="wlog-row">
+              <div class="wlog-time">${w.date}</div>
+              <div class="wlog-detail">
+                <span class="wlog-amount">${w.litres}L</span> · ${w.duration}min · ${w.method}
+                ${w.notes?`<div style="font-size:10px;color:var(--tl);margin-top:1px">${w.notes}</div>`:""}
+              </div>
+              <span class="badge b-blue">${w.time||""}</span>
+            </div>`).join("")}
+        </div>`:""}
+      `:"";
+
+    return`<div class="card court-card">
+      <div class="crow">
+        <div>
+          <div class="cname">${c.name}</div>
+          <div style="font-size:11px;color:var(--tl)">${c.city||"No location"}</div>
+        </div>
+        <span class="badge ${c.active?"b-ok":"b-warn"}">${c.active?"● Active":"○ Inactive"}</span>
+      </div>
+      ${inner}
+      <div class="divider"></div>
+      <div class="flex-row">
+        <button class="btn ${c.active?"bbad":"bok"}" style="flex:1;font-size:11px" onclick="toggleCourt('${c.id}')">${c.active?"Close Court":"Open Court"}</button>
+        <button class="btn bghost" style="flex:1;font-size:11px" onclick="editCourtCity('${c.id}')">📍 Set Location</button>
+      </div>
+    </div>`;
   }).join("");
-  document.getElementById("page-courts").innerHTML=`<div class="stitle">Courts & Conditions</div>${html}`;
+  document.getElementById("page-courts").innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="stitle" style="margin-bottom:0">Courts & Conditions</div>
+      <button class="btn bp" style="padding:6px 11px;font-size:11px" onclick="refreshAllWeather()">🌐 All Weather</button>
+    </div>
+    <div class="info-box" style="margin-bottom:11px">💡 Humidity and climate are fetched live from the court's city via OpenWeatherMap. Set your API key in ⚙️ Settings.</div>
+    ${html}`;
+}
+
+function editCourtCity(id){
+  const c=courts[id];
+  const city=prompt(`Enter city for ${c.name} (e.g. Barcelona, Miami, Paris):`, c.city||"");
+  if(city===null) return;
+  courts[id].city=city.trim();
+  dbUpdate(`club/courts/${id}`,{city:city.trim()});
+  toast("📍 Location updated — tap Live Weather to fetch conditions");
+  render();
+}
+
+function toggleCourt(id){
+  courts[id].active=!courts[id].active;
+  dbUpdate(`club/courts/${id}`,{active:courts[id].active});
+  toast(courts[id].active?"✅ Court opened":"🔒 Court closed");
+  render();
+}
+
+// ── WATERING ───────────────────────────────────────────
+function openWaterModal(courtId){
+  const c=courts[courtId];
+  document.getElementById("wt-court-id").value=courtId;
+  document.getElementById("wt-court-name").value=c.name+" — "+c.city;
+  document.getElementById("wt-date").value=today();
+  const now=new Date();
+  document.getElementById("wt-time").value=now.getHours().toString().padStart(2,"0")+":"+now.getMinutes().toString().padStart(2,"0");
+  document.getElementById("wt-notes").value="";
+  openModal("m-water");
+}
+function saveWatering(){
+  const courtId=document.getElementById("wt-court-id").value;
+  const court=courts[courtId];
+  const id=uid();
+  const rec={
+    id, court:court.name, courtId,
+    date:document.getElementById("wt-date").value||today(),
+    time:document.getElementById("wt-time").value,
+    duration:document.getElementById("wt-duration").value,
+    litres:document.getElementById("wt-litres").value,
+    method:document.getElementById("wt-method").value,
+    notes:document.getElementById("wt-notes").value.trim(),
+  };
+  waterLogs[id]=rec;
+  dbSet(`club/waterLogs/${id}`,rec);
+  // Mark court as watered today if date is today
+  if(rec.date===today()){
+    courts[courtId].watered=true;
+    dbUpdate(`club/courts/${courtId}`,{watered:true});
+  }
+  closeModal("m-water");
+  toast(`💧 Watering logged — ${rec.litres}L on ${court.name}`);
+  render();
 }
 
 // ── VISITS ─────────────────────────────────────────────
 function renderVisits(){
   const month=curMonth();
-  const ml=new Date(month+"-15").toLocaleString("default",{month:"long",year:"numeric"});
   const all=arr(visits);
   const mVis=all.filter(v=>v.date&&v.date.startsWith(month));
   const slots={Morning:0,Evening:0,Both:0,"Post Hours":0};
@@ -608,76 +1007,157 @@ function renderVisits(){
   const slBadge=s=>s==="Morning"?"b-morning":s==="Evening"?"b-evening":s==="Both"?"b-both":"b-post";
   const slEmoji=s=>s==="Morning"?"🌅":s==="Evening"?"🌆":s==="Both"?"🌞":"🌙";
   const recent=[...all].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,12);
-  const mBars=Object.entries(mc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar-row"><div class="bar-label">${n.split(" ")[0]}</div><div class="bar-bg"><div class="bar-fill" style="width:${(c/maxM*100).toFixed(0)}%;background:var(--clay)"></div></div><div class="bar-val">${c}</div></div>`).join("");
-  const cBars=Object.entries(cc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>`<div class="bar-row"><div class="bar-label">${n}</div><div class="bar-bg"><div class="bar-fill" style="width:${(c/maxM*100).toFixed(0)}%;background:var(--green)"></div></div><div class="bar-val">${c}</div></div>`).join("");
+
+  const mBars=Object.entries(mc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>
+    `<div class="bar-row"><div class="bar-label" style="cursor:pointer;color:var(--clay);text-decoration:underline" onclick="openMemberSummary('${n}')">${n.split(" ")[0]}</div><div class="bar-bg"><div class="bar-fill" style="width:${(c/maxM*100).toFixed(0)}%;background:var(--clay)"></div></div><div class="bar-val">${c}</div></div>`).join("");
+  const cBars=Object.entries(cc).sort((a,b)=>b[1]-a[1]).map(([n,c])=>
+    `<div class="bar-row"><div class="bar-label">${n}</div><div class="bar-bg"><div class="bar-fill" style="width:${(c/maxM*100).toFixed(0)}%;background:var(--green)"></div></div><div class="bar-val">${c}</div></div>`).join("");
+
   document.getElementById("page-visits").innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="stitle" style="margin-bottom:0">Court Visits</div>
-      <button class="btn bp" style="padding:7px 13px;font-size:12px" onclick="openVisitModal()">+ Log</button>
+      <button class="btn bp" style="padding:6px 11px;font-size:11px" onclick="openVisitModal()">+ Log</button>
     </div>
-    <div class="card" style="background:linear-gradient(135deg,var(--clay-d),var(--clay));color:#fff;margin-bottom:10px">
-      <div style="font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.8px">${ml}</div>
-      <div style="font-family:'Playfair Display',serif;font-size:34px;font-weight:700;margin:3px 0">${mVis.length}</div>
-      <div style="font-size:12px;opacity:.75">total court visits</div>
-    </div>
-    <div class="card" style="margin-bottom:10px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px">⏰ Visits by Time Slot</div>
-      <div class="g2">
-        ${[["Morning","🌅",slots.Morning],["Evening","🌆",slots.Evening],["Both","🌞",slots.Both],["Post Hours","🌙",slots["Post Hours"]]].map(([s,e,n])=>`<div style="background:var(--cream);border-radius:11px;padding:10px;text-align:center"><div style="font-size:20px">${e}</div><div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--clay)">${n}</div><div style="font-size:10px;color:var(--tl);margin-top:1px">${s}</div></div>`).join("")}
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:10px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px">👥 Member Activity</div>
-      ${mBars||'<div style="color:var(--tl);font-size:13px">No visits this month.</div>'}
-    </div>
-    <div class="card" style="margin-bottom:10px">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🎾 Court Usage</div>
-      ${cBars||'<div style="color:var(--tl);font-size:13px">No visits this month.</div>'}
+    <div class="card" style="background:linear-gradient(135deg,var(--clay-d),var(--clay));color:#fff">
+      <div style="font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.8px">${monthLabel(month)}</div>
+      <div style="font-family:'Playfair Display',serif;font-size:32px;font-weight:700;margin:2px 0">${mVis.length}</div>
+      <div style="font-size:11px;opacity:.75">total court visits</div>
     </div>
     <div class="card">
-      <div style="font-weight:700;font-size:14px;margin-bottom:4px">📋 Recent Visits</div>
-      ${recent.length===0?'<div style="color:var(--tl);font-size:13px;padding:10px 0">No visits logged yet.</div>':
-        recent.map(v=>`<div class="visit-row"><div class="visit-info"><div class="visit-name">${v.member}</div><div class="visit-detail">${v.court} · ${v.date}</div></div><span class="badge ${slBadge(v.slot)}">${slEmoji(v.slot)} ${v.slot}</span></div>`).join("")}
+      <div style="font-weight:700;font-size:13px;margin-bottom:9px">⏰ By Time Slot</div>
+      <div class="g2">
+        ${[["Morning","🌅",slots.Morning],["Evening","🌆",slots.Evening],["Both","🌞",slots.Both],["Post Hours","🌙",slots["Post Hours"]]].map(([s,e,n])=>`<div style="background:var(--cream);border-radius:10px;padding:9px;text-align:center"><div style="font-size:18px">${e}</div><div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--clay)">${n}</div><div style="font-size:9px;color:var(--tl);margin-top:1px">${s}</div></div>`).join("")}
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:13px;margin-bottom:9px">👥 Member Activity <span style="font-size:10px;color:var(--tl);font-weight:400">(tap name for session detail)</span></div>
+      ${mBars||'<div style="color:var(--tl);font-size:12px">No visits this month.</div>'}
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:13px;margin-bottom:9px">🎾 Court Usage</div>
+      ${cBars||'<div style="color:var(--tl);font-size:12px">No visits this month.</div>'}
+    </div>
+    <div class="card">
+      <div style="font-weight:700;font-size:13px;margin-bottom:4px">📋 Recent Visits</div>
+      ${recent.length===0?'<div style="color:var(--tl);font-size:12px;padding:8px 0">No visits logged yet.</div>':
+        recent.map(v=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--sand)"><div style="flex:1"><div style="font-weight:700;font-size:13px;cursor:pointer;color:var(--clay)" onclick="openMemberSummary('${v.member}')">${v.member}</div><div class="sub">${v.court} · ${v.date}${v.notes?" · <em>"+v.notes+"</em>":""}</div></div><span class="badge ${slBadge(v.slot)}">${slEmoji(v.slot)} ${v.slot}</span></div>`).join("")}
     </div>`;
 }
 
+// ── MEMBER VISIT SUMMARY (Session level) ───────────────
+function openMemberSummary(memberName){
+  const mVisits = arr(visits)
+    .filter(v=>v.member===memberName)
+    .sort((a,b)=>b.date.localeCompare(a.date));
+
+  const member = arr(members).find(m=>m.name===memberName)||{name:memberName};
+  const slBadge=s=>s==="Morning"?"b-morning":s==="Evening"?"b-evening":s==="Both"?"b-both":"b-post";
+  const slEmoji=s=>s==="Morning"?"🌅":s==="Evening"?"🌆":s==="Both"?"🌞":"🌙";
+
+  // Monthly breakdown
+  const byMonth = {};
+  mVisits.forEach(v=>{
+    const m=v.date.slice(0,7);
+    if(!byMonth[m]) byMonth[m]={total:0,Morning:0,Evening:0,Both:0,"Post Hours":0,courts:{}};
+    byMonth[m].total++;
+    if(byMonth[m][v.slot]!==undefined) byMonth[m][v.slot]++;
+    byMonth[m].courts[v.court]=(byMonth[m].courts[v.court]||0)+1;
+  });
+
+  // Totals
+  const totalSessions = mVisits.length;
+  const slots={Morning:0,Evening:0,Both:0,"Post Hours":0};
+  mVisits.forEach(v=>{if(slots[v.slot]!==undefined)slots[v.slot]++;});
+  const favCourt = Object.entries(mVisits.reduce((a,v)=>{a[v.court]=(a[v.court]||0)+1;return a;},{})).sort((a,b)=>b[1]-a[1])[0]||["—",0];
+
+  const monthSections = Object.entries(byMonth).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,data])=>`
+    <div style="margin-bottom:11px">
+      <div style="font-weight:700;font-size:12px;color:var(--clay-d);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${monthLabel(m)} — ${data.total} sessions</div>
+      <div class="g2" style="margin-bottom:8px">
+        ${[["Morning","🌅",data.Morning],["Evening","🌆",data.Evening],["Both","🌞",data.Both],["Post Hours","🌙",data["Post Hours"]]].filter(s=>s[2]>0).map(([s,e,n])=>`<div style="background:var(--cream);border-radius:9px;padding:7px;text-align:center"><div>${e}</div><div style="font-weight:700;font-size:16px;color:var(--clay)">${n}</div><div style="font-size:9px;color:var(--tl)">${s}</div></div>`).join("")}
+      </div>
+      ${mVisits.filter(v=>v.date.startsWith(m)).map(v=>`
+        <div class="session-row">
+          <div class="session-date">${v.date}</div>
+          <div style="flex:1">
+            <div class="session-detail"><span class="badge ${slBadge(v.slot)}">${slEmoji(v.slot)} ${v.slot}</span></div>
+            <div class="session-court">${v.court}${v.notes?" · "+v.notes:""}</div>
+          </div>
+        </div>`).join("")}
+    </div>`).join("");
+
+  document.getElementById("member-summary-content").innerHTML=`
+    <div class="vs-header">
+      <div class="vs-avatar">${initials(memberName)}</div>
+      <div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700">${memberName}</div>
+        <div class="sub">${member.plan||""} · ${member.status||""}</div>
+      </div>
+    </div>
+    <div class="g3" style="margin-bottom:12px">
+      <div class="scard"><div class="sval">${totalSessions}</div><div class="slbl">Total Sessions</div></div>
+      <div class="scard"><div class="sval">${slots.Morning+slots.Both}</div><div class="slbl">Morning</div></div>
+      <div class="scard"><div class="sval">${slots.Evening+slots.Both}</div><div class="slbl">Evening</div></div>
+    </div>
+    <div class="card" style="margin-bottom:11px">
+      <div class="g2">
+        <div><div style="font-size:10px;color:var(--tl);text-transform:uppercase;letter-spacing:.4px">Favourite Court</div><div style="font-weight:700;margin-top:3px">${favCourt[0]}</div><div class="sub">${favCourt[1]} sessions</div></div>
+        <div><div style="font-size:10px;color:var(--tl);text-transform:uppercase;letter-spacing:.4px">Post-Hours Sessions</div><div style="font-weight:700;margin-top:3px;color:${slots["Post Hours"]>2?"var(--bad)":"var(--t)"}">${slots["Post Hours"]}</div></div>
+      </div>
+    </div>
+    <div style="font-weight:700;font-size:13px;margin-bottom:10px">Monthly Session Breakdown</div>
+    ${monthSections||'<div style="color:var(--tl);font-size:12px;padding:8px 0">No sessions recorded.</div>'}`;
+
+  openModal("m-member-summary");
+}
+
 // ── BALLS ──────────────────────────────────────────────
-function iBadge(sev){const m={high:"#FDECEA:#B73535",medium:"#FFF9E6:#C17E0A",low:"#FFF3E0:#E07B2A",ok:"#E8F5E9:#2D7D46"};const[bg,cl]=(m[sev]||m.ok).split(":");return`<span style="padding:2px 7px;border-radius:20px;font-size:9px;font-weight:700;background:${bg};color:${cl}">${sev}</span>`;}
-function ringH(score,color){const r=36,c=2*Math.PI*r,off=c-(score/100)*c;return`<svg width="82" height="82" viewBox="0 0 82 82"><circle class="ring-track" cx="41" cy="41" r="${r}"/><circle class="ring-fill" cx="41" cy="41" r="${r}" style="stroke:${color};stroke-dasharray:${c};stroke-dashoffset:${off}"/></svg>`;}
+function iBadge(sev){const m={high:"#FDECEA:#B73535",medium:"#FFF9E6:#C17E0A",low:"#FFF3E0:#E07B2A",ok:"#E8F5E9:#2D7D46"};const[bg,cl]=(m[sev]||m.ok).split(":");return`<span style="padding:2px 6px;border-radius:20px;font-size:9px;font-weight:700;background:${bg};color:${cl}">${sev}</span>`;}
+function ringH(score,color){const r=34,c=2*Math.PI*r,off=c-(score/100)*c;return`<svg width="78" height="78" viewBox="0 0 78 78"><circle class="ring-track" cx="39" cy="39" r="${r}"/><circle class="ring-fill" cx="39" cy="39" r="${r}" style="stroke:${color};stroke-dasharray:${c};stroke-dashoffset:${off}"/></svg>`;}
 
 function renderBalls(){
-  const active=arr(balls).filter(b=>!b.replaced);
-  const archived=arr(balls).filter(b=>b.replaced);
-  const legend=`<div class="card" style="background:linear-gradient(135deg,#FDF6F0,#FAF0E8);margin-bottom:10px"><div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--clay-d)">🧠 Score Factors Used by AI</div><div class="g2">${[["💧 Humidity","Court sensor data"],["🌡 Temperature","Session conditions"],["🌧 Weather","Rain/wind impact"],["🌍 Climate","Zone degradation"],["📊 Visits","Monthly court traffic"],["🌙 Post Hours","Night dew exposure"]].map(([k,v])=>`<div style="background:var(--cream);border-radius:9px;padding:7px 9px"><div style="font-weight:700;font-size:11px">${k}</div><div style="font-size:10px;color:var(--tl);margin-top:1px">${v}</div></div>`).join("")}</div></div>`;
+  const active  = arr(balls).filter(b=>!b.replaced);
+  const archived= arr(balls).filter(b=>b.replaced);
 
-  const ballCards=active.length===0?`<div class="card" style="text-align:center;padding:28px"><div style="font-size:36px;margin-bottom:9px">🎾</div><div style="font-size:14px;color:var(--tl)">No active ball sets. Open a new set to start tracking.</div></div>`:
-    active.map(b=>{
-      const court=arr(courts).find(c=>c.name===b.court)||{};
-      const health=computeHealth(b,court.humidity);
+  const legend=`<div class="card" style="background:linear-gradient(135deg,#FDF6F0,#FAF0E8);margin-bottom:9px">
+    <div style="font-weight:700;font-size:12px;margin-bottom:7px;color:var(--clay-d)">🧠 AI uses all these factors</div>
+    <div class="g2">${[["💧 Humidity","Live from court sensor"],["🌡 Temperature","Live from location"],["🌧 Weather","Live via OpenWeatherMap"],["🌍 Climate","Auto-derived from location"],["📊 Visits","Monthly court traffic"],["🚿 Watering","Frequency & volume logs"]].map(([k,v])=>`<div style="background:var(--cream);border-radius:8px;padding:6px 8px"><div style="font-weight:700;font-size:11px">${k}</div><div style="font-size:10px;color:var(--tl);margin-top:1px">${v}</div></div>`).join("")}</div>
+  </div>`;
+
+  const ballCards=active.length===0
+    ?`<div class="card" style="text-align:center;padding:26px"><div style="font-size:34px;margin-bottom:8px">🎾</div><div style="font-size:13px;color:var(--tl)">No active ball sets. Open a new set to start tracking.</div></div>`
+    :active.map(b=>{
+      const health=computeHealth(b);
       const exp=expandedBall===b.id;
       const bcls=health.urgency==="crit"?"br":health.urgency==="warn"?"bw":"";
-      const recText=health.pct>=100?"⛔ Replace immediately — balls have exceeded usable life.":health.pct>=75?"⚠️ Declining fast. Replace within 1–2 sessions.":health.pct>=40?"✅ Performing well. Monitor after each session.":"🟢 Fresh set — reliable pace and bounce.";
+      const recText=health.pct>=100?"⛔ Replace immediately.":health.pct>=75?"⚠️ Replace within 1–2 sessions.":health.pct>=40?"✅ Monitor after each session.":"🟢 Fresh — reliable bounce.";
       const cached=aiCache[b.id];
+      const court=arr(courts).find(c=>c.name===b.court)||{};
       return`<div class="card ${bcls}" id="bcard-${b.id}">
-        <div style="display:flex;gap:11px;align-items:flex-start">
-          <div class="ring-wrap" style="width:82px;height:82px">${ringH(health.score,health.color)}<div class="ring-lbl"><div class="ring-score" style="color:${health.color}">${health.score}</div><div class="ring-unit">score</div></div></div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div class="ring-wrap" style="width:78px;height:78px">${ringH(health.score,health.color)}<div class="ring-lbl"><div class="ring-score" style="color:${health.color}">${health.score}</div><div class="ring-unit">score</div></div></div>
           <div style="flex:1;min-width:0">
             <div class="ball-brand">${b.brand}</div>
-            <div class="sub">${b.court} · ${b.type||"Clay"}</div>
-            <div class="ball-tags"><span class="btag">📅 ${b.openedDate}</span><span class="btag">🎾 ${b.sessions} sessions</span><span class="btag">${b.weather}</span><span class="btag">${b.temperature}</span></div>
-            <div style="margin-top:7px;display:flex;align-items:center;gap:7px">
-              <span class="badge" style="background:#FAE8DE;color:var(--clay-d)">${health.emoji} ${health.condition}</span>
-              ${health.remaining>0?`<span style="font-size:11px;color:var(--tl)">~${health.remaining} sessions left</span>`:""}
+            <div class="sub">${b.court} · ${b.type||"Clay"} · 📍${court.city||"?"}</div>
+            <div class="ball-tags">
+              <span class="btag">📅 ${b.openedDate}</span>
+              <span class="btag">🎾 ${b.sessions} sessions</span>
+              <span class="btag">${health.weatherIcon||"🌡"} ${health.tempC}°C</span>
+              <span class="btag">💦 ${health.humidity}%</span>
+            </div>
+            <div style="margin-top:6px;display:flex;align-items:center;gap:6px">
+              <span class="badge b-clay">${health.emoji} ${health.condition}</span>
+              ${health.remaining>0?`<span style="font-size:10px;color:var(--tl)">~${health.remaining} sessions left</span>`:""}
             </div>
           </div>
         </div>
-        <div style="background:var(--cream);border-radius:10px;padding:9px 11px;margin:10px 0 7px;font-size:13px;color:var(--tm);line-height:1.5">${recText}</div>
-        <button class="expand-btn" onclick="toggleExpand('${b.id}')">${exp?"▲ Hide Factor Details":"▼ Show Factor Breakdown"}</button>
-        ${exp?`<div style="margin-top:9px"><div style="font-weight:700;font-size:13px;margin-bottom:7px">Degradation Factors</div>${health.factors.map(f=>`<div class="factor-row"><span style="font-size:17px">${f.icon}</span><div class="factor-body"><div style="display:flex;justify-content:space-between;align-items:center"><div class="factor-lbl">${f.lbl}: <span style="color:var(--clay)">${f.val}</span></div>${iBadge(f.sev)}</div><div class="factor-det">${f.det}</div></div></div>`).join("")}<button class="btn bwarn" style="width:100%;margin-top:9px;font-size:12px" onclick="openCondModal('${b.id}','${b.weather}','${b.temperature}','${b.climate}')">🌤 Update Conditions</button></div>`:""}
+        <div style="background:var(--cream);border-radius:9px;padding:8px 10px;margin:9px 0 6px;font-size:12px;color:var(--tm);line-height:1.5">${recText}</div>
+        <button class="expand-btn" onclick="toggleExpand('${b.id}')">${exp?"▲ Hide Breakdown":"▼ Show Factor Breakdown"}</button>
+        ${exp?`<div style="margin-top:8px"><div style="font-weight:700;font-size:12px;margin-bottom:6px">Live Degradation Factors</div>${health.factors.map(f=>`<div class="factor-row"><span style="font-size:16px">${f.icon}</span><div class="factor-body"><div style="display:flex;justify-content:space-between;align-items:center"><div class="factor-lbl">${f.lbl}: <span style="color:var(--clay)">${f.val}</span></div>${iBadge(f.sev)}</div><div class="factor-det">${f.det}</div></div></div>`).join("")}</div>`:""}
         <div id="ai-box-${b.id}" class="ai-box" style="display:${cached?"block":"none"}">
           ${cached?`<div class="ai-box-title">✨ AI Advisor</div><div class="ai-box-text">${cached}</div>`:""}
         </div>
-        <div class="flex-row" style="margin-top:9px">
+        <div class="flex-row" style="margin-top:8px">
           <button class="btn bs"  style="flex:1;font-size:11px" onclick="addSession('${b.id}')">+1 Session</button>
           <button class="btn bai" style="flex:1;font-size:11px" onclick="requestAI('${b.id}')">✨ Ask AI</button>
           <button class="btn ${health.urgency==="crit"||health.urgency==="warn"?"bbad":"bs"}" style="flex:1;font-size:11px" onclick="replaceBalls('${b.id}')">🔄 Replace</button>
@@ -685,12 +1165,12 @@ function renderBalls(){
       </div>`;
     }).join("");
 
-  const arch=archived.length>0?`<div style="font-family:'Playfair Display',serif;font-weight:700;font-size:14px;color:var(--tl);margin:14px 0 9px">Replaced Sets</div>${archived.map(b=>`<div class="card dim"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${b.brand}</div><div class="sub">${b.court} · ${b.sessions} sessions · replaced ${b.replacedDate||"—"}</div></div><span style="font-size:22px">♻️</span></div></div>`).join("")}`:"";
+  const arch=archived.length>0?`<div style="font-family:'Playfair Display',serif;font-weight:700;font-size:13px;color:var(--tl);margin:12px 0 8px">Replaced Sets</div>${archived.map(b=>`<div class="card dim"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:700;font-size:13px">${b.brand}</div><div class="sub">${b.court} · ${b.sessions} sessions · replaced ${b.replacedDate||"—"}</div></div><span style="font-size:20px">♻️</span></div></div>`).join("")}`:"";
 
   document.getElementById("page-balls").innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="stitle" style="margin-bottom:0">Tennis Balls</div>
-      <button class="btn bp" style="padding:7px 13px;font-size:12px" onclick="openBallModal()">+ New Set</button>
+      <button class="btn bp" style="padding:6px 11px;font-size:11px" onclick="openBallModal()">+ New Set</button>
     </div>${legend}${ballCards}${arch}`;
 }
 
@@ -703,25 +1183,30 @@ function requestAI(id){
 // ── MEMBERS ────────────────────────────────────────────
 function renderMembers(){
   const html=arr(members).map(m=>`
-    <div class="card"><div class="mcard">
-      <div class="avatar">${initials(m.name)}</div>
-      <div class="minfo">
-        <div class="mname">${m.name}</div>
-        <div class="sub">${m.email}</div>
-        <div class="sub">📱 ${m.phone}</div>
-        <div style="margin-top:5px"><span class="badge b-clay">${arr(visits).filter(v=>v.member===m.name&&v.date&&v.date.startsWith(curMonth())).length} visits this month</span></div>
+    <div class="card">
+      <div class="mcard">
+        <div class="avatar">${initials(m.name)}</div>
+        <div class="minfo">
+          <div class="mname">${m.name}</div>
+          <div class="sub">${m.email}</div>
+          <div class="sub">📱 ${m.phone}</div>
+          <div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">
+            <span class="badge b-clay" style="cursor:pointer" onclick="openMemberSummary('${m.name}')">${arr(visits).filter(v=>v.member===m.name&&v.date&&v.date.startsWith(curMonth())).length} visits this month 📊</span>
+          </div>
+        </div>
+        <div class="mstatus">
+          <span class="badge ${m.status==="Active"?"b-ok":"b-warn"}">${m.status}</span>
+          <span class="badge ${m.paid?"b-ok":"b-bad"}">${m.paid?"Paid":"Owes"}</span>
+          <div style="font-size:10px;color:var(--tl);margin-top:2px">${m.plan}</div>
+          <button class="btn bghost" style="margin-top:5px;padding:4px 9px;font-size:10px" onclick="editMember('${m.id}')">✏️ Edit</button>
+        </div>
       </div>
-      <div class="mstatus">
-        <span class="badge ${m.status==="Active"?"b-ok":"b-warn"}">${m.status}</span>
-        <span class="badge ${m.paid?"b-ok":"b-bad"}">${m.paid?"Paid":"Owes"}</span>
-        <div style="font-size:10px;color:var(--tl);margin-top:2px">${m.plan}</div>
-      </div>
-    </div></div>`).join("");
+    </div>`).join("");
   document.getElementById("page-members").innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="stitle" style="margin-bottom:0">Members</div>
-      <button class="btn bp" style="padding:7px 14px" onclick="openMemberModal()">+ Add</button>
-    </div>${html}`;
+      <button class="btn bp" style="padding:6px 12px" onclick="openMemberModal()">+ Add</button>
+    </div>${html||'<div class="card" style="text-align:center;padding:26px;color:var(--tl)">No members yet.</div>'}`;
 }
 
 // ── MAINTENANCE ────────────────────────────────────────
@@ -729,19 +1214,21 @@ function renderMaintenance(){
   const dc=s=>s==="Done"?"var(--ok)":s==="Pending"?"var(--warn)":"var(--clay)";
   const pc=p=>p==="High"?"b-ph":p==="Medium"?"b-pm":"b-pl";
   const html=arr(maintenance).map(t=>`
-    <div class="card"><div class="trow">
-      <div class="tdot" style="background:${dc(t.status)}"></div>
-      <div class="tinfo">
-        <div class="tname">${t.task}</div>
-        <div class="sub">${t.court} · 📅 ${t.scheduled}</div>
-        <div class="tmeta"><span class="badge ${pc(t.priority)}">${t.priority}</span><span style="font-size:12px;font-weight:700;color:${dc(t.status)}">${t.status}</span></div>
-        ${t.status!=="Done"?`<div class="flex-row" style="margin-top:8px">${t.status==="Pending"?`<button class="btn bs" style="font-size:11px;padding:6px 9px" onclick="updateTaskStatus('${t.id}','In Progress')">▶ Start</button>`:""}<button class="btn bok" style="font-size:11px;padding:6px 9px" onclick="updateTaskStatus('${t.id}','Done')">✓ Done</button></div>`:""}
+    <div class="card">
+      <div class="trow">
+        <div class="tdot" style="background:${dc(t.status)}"></div>
+        <div class="tinfo">
+          <div class="tname">${t.task}</div>
+          <div class="sub">${t.court} · 📅 ${t.scheduled}</div>
+          <div class="tmeta"><span class="badge ${pc(t.priority)}">${t.priority}</span><span style="font-size:11px;font-weight:700;color:${dc(t.status)}">${t.status}</span></div>
+          ${t.status!=="Done"?`<div class="flex-row" style="margin-top:7px">${t.status==="Pending"?`<button class="btn bs" style="font-size:10px;padding:5px 8px" onclick="updateTaskStatus('${t.id}','In Progress')">▶ Start</button>`:""}<button class="btn bok" style="font-size:10px;padding:5px 8px" onclick="updateTaskStatus('${t.id}','Done')">✓ Done</button></div>`:""}
+        </div>
       </div>
-    </div></div>`).join("");
+    </div>`).join("");
   document.getElementById("page-maintenance").innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:13px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="stitle" style="margin-bottom:0">Maintenance</div>
-      <button class="btn bp" style="padding:7px 14px" onclick="openTaskModal()">+ Add</button>
+      <button class="btn bp" style="padding:6px 12px" onclick="openTaskModal()">+ Add</button>
     </div>${html}`;
 }
 
@@ -752,54 +1239,177 @@ function renderPayments(){
   const html=arr(payments).map(p=>`
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-weight:700;font-size:14px">${p.member}</div><div class="sub">${p.plan} · ${p.date}</div></div>
-        <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700">€${p.amount}</div><span class="badge ${p.status==="Paid"?"b-ok":"b-bad"}">${p.status}</span></div>
+        <div><div style="font-weight:700;font-size:13px">${p.member}</div><div class="sub">${p.plan} · ${p.date}</div></div>
+        <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700">€${p.amount}</div><span class="badge ${p.status==="Paid"?"b-ok":"b-bad"}">${p.status}</span></div>
       </div>
-      ${p.status==="Overdue"?`<button class="btn bok full" style="font-size:12px" onclick="markPaid('${p.id}')">💳 Mark as Paid</button>`:""}
+      ${p.status==="Overdue"?`<button class="btn bok full" style="font-size:11px" onclick="markPaid('${p.id}')">💳 Mark as Paid</button>`:""}
     </div>`).join("");
   document.getElementById("page-payments").innerHTML=`
     <div class="stitle">Payments</div>
     <div class="pay-hero">
-      <div style="font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.8px">Total Collected</div>
+      <div style="font-size:10px;opacity:.8;text-transform:uppercase;letter-spacing:.8px">Total Collected</div>
       <div class="pay-hero-amt">€${rev}</div>
       <div style="font-size:11px;opacity:.7">${od} payment${od!==1?"s":""} overdue</div>
     </div>${html}`;
 }
 
+// ── SETTINGS ───────────────────────────────────────────
+function renderSettings(){
+  const fbStatus = window._fbConfigured
+    ? `<span style="color:var(--ok);font-weight:700">✅ Configured</span>`
+    : `<span style="color:var(--warn);font-weight:700">⚠️ Using placeholder config</span>`;
+  const owmStatus = settings.owmKey
+    ? `<span style="color:var(--ok);font-weight:700">✅ Set</span>`
+    : `<span style="color:var(--warn);font-weight:700">Not set yet</span>`;
+
+  document.getElementById("page-settings").innerHTML=`
+    <div class="stitle">⚙️ Settings</div>
+
+    <!-- Firebase -->
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🔥 Firebase Sync</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Connection Status</div><div class="setting-sub">Real-time sync across all devices</div></div>
+        <div class="setting-val">${fbStatus}</div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Sync Indicator</div><div class="setting-sub">Shown in header top-right</div></div>
+        <div class="setting-val" id="set-sync-live">—</div>
+      </div>
+      <div class="info-box" style="margin-top:9px">To enable sync: edit index.html and replace the placeholder Firebase config at the top of the file with your real config from Firebase Console.</div>
+    </div>
+
+    <!-- OpenWeatherMap -->
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🌦 OpenWeatherMap API</div>
+      <div class="setting-row">
+        <div><div class="setting-label">API Key Status</div><div class="setting-sub">Used for live humidity & weather</div></div>
+        <div class="setting-val">${owmStatus}</div>
+      </div>
+      <div class="fg" style="margin-top:10px"><label>Enter OpenWeatherMap API Key</label>
+        <input id="owm-key-input" placeholder="e.g. a1b2c3d4e5f6..." value="${settings.owmKey||""}">
+      </div>
+      <button class="btn bp full" onclick="saveOWMKey()">Save API Key</button>
+      <div class="info-box" style="margin-top:9px">Get a free key at <strong>openweathermap.org/api</strong> → Free plan → API key. Takes ~10 min to activate. Once saved, tap 🌐 Live Weather on any court to fetch real conditions.</div>
+    </div>
+
+    <!-- Courts locations -->
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">📍 Court Locations</div>
+      ${arr(courts).map(c=>`
+        <div class="setting-row">
+          <div><div class="setting-label">${c.name}</div><div class="setting-sub">${c.active?"Active":"Inactive"}</div></div>
+          <div style="display:flex;align-items:center;gap:7px">
+            <div class="setting-val">${c.city||"Not set"}</div>
+            <button class="btn bghost" style="padding:4px 8px;font-size:10px" onclick="editCourtCity('${c.id}')">Edit</button>
+          </div>
+        </div>`).join("")}
+      <div class="info-box" style="margin-top:9px">Set a city name for each court (e.g. "Barcelona", "Miami", "Paris"). The app will fetch real-time humidity, temperature and weather conditions for that city and use them in ball health calculations.</div>
+    </div>
+
+    <!-- How humidity works -->
+    <div class="card">
+      <div style="font-weight:700;font-size:14px;margin-bottom:10px">💡 How Humidity & Watering Work</div>
+      <div style="font-size:13px;color:var(--tm);line-height:1.8">
+        <div style="margin-bottom:7px"><strong>Humidity</strong> is fetched live from OpenWeatherMap using the court's city. It updates each time you tap "🌐 Live Weather". Clay courts at 65–80% RH have ideal conditions; above 80% accelerates ball degradation significantly.</div>
+        <div style="margin-bottom:7px"><strong>Watering is manually logged</strong> via the "💧 Log Watering" button on each court. You enter the date, time, duration, volume (litres) and method. This data feeds into ball health calculations — courts watered very frequently add slight weight to balls over time.</div>
+        <div><strong>Climate zone</strong> is auto-derived from the fetched temperature and humidity. You can set it manually via "Set Location" on each court card.</div>
+      </div>
+    </div>`;
+
+  // Update live sync status in settings
+  const el=document.getElementById("set-sync-live");
+  if(el) el.innerHTML=document.getElementById("sync-txt").textContent;
+}
+
+function saveOWMKey(){
+  const key=document.getElementById("owm-key-input").value.trim();
+  settings.owmKey=key;
+  dbSet("club/settings",settings);
+  toast(key?"✅ API key saved! Tap 🌐 Live Weather on a court to test.":"⚠️ API key cleared");
+  render();
+}
+
 // ══════════════════════════════════════════════════════
 // ACTIONS
 // ══════════════════════════════════════════════════════
-function waterCourt(id){const t=now();courts[id]={...courts[id],watered:true,lastWatered:t};dbUpdate(`club/courts/${id}`,{watered:true,lastWatered:t});toast("💧 Court watered!");render();}
-function refreshHumidity(id){const h=Math.floor(Math.random()*30+45);courts[id]={...courts[id],humidity:h,humidityAt:now()};dbUpdate(`club/courts/${id}`,{humidity:h,humidityAt:now()});toast("📡 Humidity refreshed!");render();}
-function toggleCourt(id){courts[id].active=!courts[id].active;dbUpdate(`club/courts/${id}`,{active:courts[id].active});toast(courts[id].active?"✅ Court opened":"🔒 Court closed");render();}
-function resetWatering(){arr(courts).forEach(c=>{courts[c.id].watered=false;dbUpdate(`club/courts/${c.id}`,{watered:false,lastWatered:null});});toast("🔄 Watering reset");render();}
-
-function openVisitModal(){document.getElementById("vt-date").value=today();selectedSlot="";["morning","evening","both","post"].forEach(s=>document.getElementById("slot-"+s).className="slot-btn");openModal("m-visit");}
+function openVisitModal(){
+  document.getElementById("vt-date").value=today();
+  selectedSlot="";
+  ["morning","evening","both","post"].forEach(s=>document.getElementById("slot-"+s).className="slot-btn");
+  document.getElementById("vt-notes").value="";
+  openModal("m-visit");
+}
 function selectSlot(slot){
   selectedSlot=slot;
   const map={Morning:"morning",Evening:"evening",Both:"both","Post Hours":"post"};
   ["morning","evening","both","post"].forEach(s=>document.getElementById("slot-"+s).className="slot-btn");
-  const k=map[slot];if(k)document.getElementById("slot-"+k).className=`slot-btn sel-${k}`;
+  const k=map[slot]; if(k) document.getElementById("slot-"+k).className="slot-btn sel-"+k;
 }
 function saveVisit(){
   const member=document.getElementById("vt-member").value;
-  const court=document.getElementById("vt-court").value;
-  const date=document.getElementById("vt-date").value||today();
+  const court =document.getElementById("vt-court").value;
+  const date  =document.getElementById("vt-date").value||today();
+  const notes =document.getElementById("vt-notes").value.trim();
   if(!selectedSlot){toast("⚠️ Please select a time slot");return;}
-  const id=uid();const rec={id,member,court,date,slot:selectedSlot};
-  visits[id]=rec;dbSet(`club/visits/${id}`,rec);
-  closeModal("m-visit");selectedSlot="";toast("📋 Visit logged!");render();
+  const id=uid(); const rec={id,member,court,date,slot:selectedSlot,notes};
+  visits[id]=rec; dbSet(`club/visits/${id}`,rec);
+  closeModal("m-visit"); selectedSlot="";
+  toast("📋 Visit logged!"); render();
 }
 
-function openMemberModal(){openModal("m-member");}
+function openMemberModal(){
+  document.getElementById("m-member-title").textContent="➕ Add Member";
+  document.getElementById("mb-save-btn").textContent="Add Member";
+  document.getElementById("mb-save-btn").onclick=saveMember;
+  document.getElementById("mb-id").value="";
+  ["mb-name","mb-email","mb-phone"].forEach(x=>document.getElementById(x).value="");
+  document.getElementById("mb-plan").value="Monthly";
+  document.getElementById("mb-status").value="Active";
+  document.getElementById("mb-paid").value="false";
+  openModal("m-member");
+}
+function editMember(id){
+  const m=members[id];
+  document.getElementById("m-member-title").textContent="✏️ Edit Member";
+  document.getElementById("mb-save-btn").textContent="Save Changes";
+  document.getElementById("mb-save-btn").onclick=()=>updateMember(id);
+  document.getElementById("mb-id").value=id;
+  document.getElementById("mb-name").value=m.name||"";
+  document.getElementById("mb-email").value=m.email||"";
+  document.getElementById("mb-phone").value=m.phone||"";
+  document.getElementById("mb-plan").value=m.plan||"Monthly";
+  document.getElementById("mb-status").value=m.status||"Active";
+  document.getElementById("mb-paid").value=m.paid?"true":"false";
+  openModal("m-member");
+}
 function saveMember(){
   const name=document.getElementById("mb-name").value.trim();
   if(!name){toast("⚠️ Please enter a name");return;}
   const id=uid();
-  const rec={id,name,email:document.getElementById("mb-email").value.trim(),phone:document.getElementById("mb-phone").value.trim(),plan:document.getElementById("mb-plan").value,status:"Active",joined:today(),paid:false};
-  members[id]=rec;dbSet(`club/members/${id}`,rec);
-  closeModal("m-member");["mb-name","mb-email","mb-phone"].forEach(x=>document.getElementById(x).value="");
-  toast("✅ Member added!");render();
+  const rec={id,name,email:document.getElementById("mb-email").value.trim(),
+    phone:document.getElementById("mb-phone").value.trim(),
+    plan:document.getElementById("mb-plan").value,
+    status:document.getElementById("mb-status").value,
+    joined:today(),paid:document.getElementById("mb-paid").value==="true"};
+  members[id]=rec; dbSet(`club/members/${id}`,rec);
+  closeModal("m-member");
+  toast("✅ Member added!"); render();
+}
+function updateMember(id){
+  const name=document.getElementById("mb-name").value.trim();
+  if(!name){toast("⚠️ Please enter a name");return;}
+  const update={
+    name, email:document.getElementById("mb-email").value.trim(),
+    phone:document.getElementById("mb-phone").value.trim(),
+    plan:document.getElementById("mb-plan").value,
+    status:document.getElementById("mb-status").value,
+    paid:document.getElementById("mb-paid").value==="true"
+  };
+  members[id]={...members[id],...update};
+  dbUpdate(`club/members/${id}`,update);
+  closeModal("m-member");
+  toast("✅ Member updated!"); render();
 }
 
 function openTaskModal(){openModal("m-task");}
@@ -807,45 +1417,53 @@ function saveTask(){
   const task=document.getElementById("tk-task").value.trim();
   if(!task){toast("⚠️ Please enter a task description");return;}
   const id=uid();
-  const rec={id,court:document.getElementById("tk-court").value,task,status:"Pending",scheduled:document.getElementById("tk-date").value||today(),priority:document.getElementById("tk-prio").value};
-  maintenance[id]=rec;dbSet(`club/maintenance/${id}`,rec);
-  closeModal("m-task");document.getElementById("tk-task").value="";toast("✅ Task scheduled!");render();
+  const rec={id,court:document.getElementById("tk-court").value,task,status:"Pending",
+    scheduled:document.getElementById("tk-date").value||today(),
+    priority:document.getElementById("tk-prio").value};
+  maintenance[id]=rec; dbSet(`club/maintenance/${id}`,rec);
+  closeModal("m-task"); document.getElementById("tk-task").value="";
+  toast("✅ Task scheduled!"); render();
 }
-function updateTaskStatus(id,status){maintenance[id].status=status;dbUpdate(`club/maintenance/${id}`,{status});toast(`Task marked as ${status}`);render();}
-function markPaid(id){payments[id].status="Paid";dbUpdate(`club/payments/${id}`,{status:"Paid"});toast("💳 Payment recorded!");render();}
+function updateTaskStatus(id,status){
+  maintenance[id].status=status;
+  dbUpdate(`club/maintenance/${id}`,{status});
+  toast(`Task marked as ${status}`); render();
+}
+function markPaid(id){
+  payments[id].status="Paid";
+  dbUpdate(`club/payments/${id}`,{status:"Paid"});
+  toast("💳 Payment recorded!"); render();
+}
 
 function openBallModal(){openModal("m-balls");}
 function saveBallSet(){
   const brand=document.getElementById("bl-brand").value.trim();
   if(!brand){toast("⚠️ Please enter a brand name");return;}
   const id=uid();
-  const rec={id,court:document.getElementById("bl-court").value,brand,type:document.getElementById("bl-type").value,openedDate:today(),ageDays:0,sessions:0,weather:document.getElementById("bl-weather").value,temperature:document.getElementById("bl-temp").value,climate:document.getElementById("bl-climate").value,replaced:false};
-  balls[id]=rec;dbSet(`club/balls/${id}`,rec);
-  closeModal("m-balls");document.getElementById("bl-brand").value="";toast("🎾 New ball set opened!");render();
+  const court=arr(courts).find(c=>c.name===document.getElementById("bl-court").value)||{};
+  const rec={id,court:court.name||"Court 1",brand,type:document.getElementById("bl-type").value,
+    openedDate:today(),ageDays:0,sessions:0,replaced:false};
+  balls[id]=rec; dbSet(`club/balls/${id}`,rec);
+  closeModal("m-balls"); document.getElementById("bl-brand").value="";
+  toast("🎾 New ball set opened!"); render();
 }
-function addSession(id){balls[id].sessions=(balls[id].sessions||0)+1;balls[id].ageDays=(balls[id].ageDays||0)+1;dbUpdate(`club/balls/${id}`,{sessions:balls[id].sessions,ageDays:balls[id].ageDays});toast("🎾 Session logged!");render();}
+function addSession(id){
+  balls[id].sessions=(balls[id].sessions||0)+1;
+  balls[id].ageDays =(balls[id].ageDays ||0)+1;
+  dbUpdate(`club/balls/${id}`,{sessions:balls[id].sessions,ageDays:balls[id].ageDays});
+  toast("🎾 Session logged!"); render();
+}
 function replaceBalls(id){
-  const old=balls[id];balls[id]={...old,replaced:true,replacedDate:today()};dbUpdate(`club/balls/${id}`,{replaced:true,replacedDate:today()});
-  const newId=uid();const newRec={...old,id:newId,sessions:0,ageDays:0,openedDate:today(),replaced:false};
-  balls[newId]=newRec;dbSet(`club/balls/${newId}`,newRec);delete aiCache[id];toast("✅ Balls replaced!");render();
+  const old=balls[id];
+  balls[id]={...old,replaced:true,replacedDate:today()};
+  dbUpdate(`club/balls/${id}`,{replaced:true,replacedDate:today()});
+  const newId=uid();
+  const newRec={...old,id:newId,sessions:0,ageDays:0,openedDate:today(),replaced:false};
+  balls[newId]=newRec; dbSet(`club/balls/${newId}`,newRec);
+  delete aiCache[id];
+  toast("✅ Balls replaced with fresh set!"); render();
 }
 function toggleExpand(id){expandedBall=expandedBall===id?null:id;render();}
-function openCondModal(id,weather,temp,climate){
-  document.getElementById("bc-id").value=id;
-  document.getElementById("bc-weather").value=weather;
-  document.getElementById("bc-temp").value=temp;
-  document.getElementById("bc-climate").value=climate;
-  openModal("m-ballcond");
-}
-function updateBallConditions(){
-  const id=document.getElementById("bc-id").value;
-  const weather=document.getElementById("bc-weather").value;
-  const temp=document.getElementById("bc-temp").value;
-  const climate=document.getElementById("bc-climate").value;
-  balls[id]={...balls[id],weather,temperature:temp,climate};
-  dbUpdate(`club/balls/${id}`,{weather,temperature:temp,climate});
-  closeModal("m-ballcond");delete aiCache[id];toast("🌤 Conditions updated!");render();
-}
 </script>
 </body>
 </html>
