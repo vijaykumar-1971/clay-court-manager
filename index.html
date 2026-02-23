@@ -350,19 +350,24 @@ nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-w
 // ║  CONFIGURATION — fill in your keys below            ║
 // ╚══════════════════════════════════════════════════════╝
 
-// Anthropic API key (for AI ball recommendations)
-// Get from: https://console.anthropic.com/settings/keys
-const ANTHROPIC_KEY = "YOUR_ANTHROPIC_API_KEY";
+// ── Keys can be entered in the ⚙️ Settings tab — no file editing needed ──
+// They are saved to localStorage so they persist across sessions.
 
-// Firebase config — from Firebase Console → Project Settings → Your Apps → Web
+// Anthropic API key — editable in Settings tab
+// Fallback to hardcoded value if localStorage is empty
+let ANTHROPIC_KEY = localStorage.getItem("ccm_ai_key") || "YOUR_ANTHROPIC_API_KEY";
+
+// Firebase config — editable in Settings tab (paste full JSON object)
+// Merges localStorage values over the hardcoded placeholders
+const _FB_SAVED  = JSON.parse(localStorage.getItem("ccm_fb_config") || "{}");
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_FIREBASE_API_KEY",
-  authDomain:        "YOUR_PROJECT.firebaseapp.com",
-  databaseURL:       "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId:         "YOUR_PROJECT_ID",
-  storageBucket:     "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId:             "YOUR_APP_ID"
+  apiKey:            _FB_SAVED.apiKey            || "YOUR_FIREBASE_API_KEY",
+  authDomain:        _FB_SAVED.authDomain        || "YOUR_PROJECT.firebaseapp.com",
+  databaseURL:       _FB_SAVED.databaseURL       || "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId:         _FB_SAVED.projectId         || "YOUR_PROJECT_ID",
+  storageBucket:     _FB_SAVED.storageBucket     || "YOUR_PROJECT.appspot.com",
+  messagingSenderId: _FB_SAVED.messagingSenderId || "YOUR_SENDER_ID",
+  appId:             _FB_SAVED.appId             || "YOUR_APP_ID"
 };
 
 // Open-Meteo is FREE — no API key needed. Weather is fetched using
@@ -1199,55 +1204,209 @@ function renderPayments(){
 function renderSettings(){
   const fbOK = FIREBASE_CONFIG.apiKey !== "YOUR_FIREBASE_API_KEY";
   const aiOK = ANTHROPIC_KEY !== "YOUR_ANTHROPIC_API_KEY";
+
+  const savedFB = JSON.parse(localStorage.getItem("ccm_fb_config")||"{}");
+
   document.getElementById("pg-settings").innerHTML=`
     <div class="stitle">⚙️ Settings</div>
 
-    <!-- Config status -->
+    <!-- ── ANTHROPIC AI KEY ── -->
     <div class="card">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🔑 API Configuration</div>
-      <div style="padding:9px 0;border-bottom:1px solid var(--sand)">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-weight:700;font-size:13px">🔥 Firebase Sync</div><div class="sub">Real-time cross-device sync</div></div>
-          <span class="badge ${fbOK?"b-ok":"b-warn"}">${fbOK?"✅ Active":"⚠️ Not set"}</span>
-        </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700;font-size:14px">✨ Anthropic AI Key</div>
+        <span class="badge ${aiOK?"b-ok":"b-bad"}">${aiOK?"● Active":"● Not set"}</span>
       </div>
-      <div style="padding:9px 0">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-weight:700;font-size:13px">✨ Anthropic AI</div><div class="sub">Ball replacement recommendations</div></div>
-          <span class="badge ${aiOK?"b-ok":"b-warn"}">${aiOK?"✅ Active":"⚠️ Not set"}</span>
-        </div>
+      <div class="fg">
+        <label>API Key</label>
+        <input id="set-ai-key" type="password" placeholder="sk-ant-api03-…"
+               value="${aiOK?ANTHROPIC_KEY:""}" autocomplete="off">
       </div>
-      <div class="info-box" style="margin-top:8px">Edit <strong>index.html</strong> — the first two constants at the top of the &lt;script&gt; are <code>ANTHROPIC_KEY</code> and <code>FIREBASE_CONFIG</code>. Replace with your real values.</div>
+      <div style="display:flex;gap:7px">
+        <button class="btn bp" style="flex:1;font-size:11px" onclick="saveAIKey()">💾 Save Key</button>
+        ${aiOK?`<button class="btn bbad" style="font-size:11px;padding:8px 12px" onclick="clearAIKey()">🗑 Clear</button>`:""}
+      </div>
+      <div class="info-box" style="margin-top:9px">
+        Get a free key at <strong>console.anthropic.com → Settings → API Keys</strong>.<br>
+        Key is saved in your browser (localStorage) — never sent anywhere except Anthropic's API.
+      </div>
     </div>
 
-    <!-- Court coordinates -->
+    <!-- ── FIREBASE CONFIG ── -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:700;font-size:14px">🔥 Firebase Sync</div>
+        <span class="badge ${fbOK?"b-ok":"b-bad"}">${fbOK?"● Live sync":"● Not set"}</span>
+      </div>
+      <div class="info-box" style="margin-bottom:10px">
+        Paste each value from <strong>Firebase Console → Project Settings → Your Apps → Web app</strong>.<br>
+        Saved in browser localStorage. Needed for real-time sync across devices.
+      </div>
+      <div class="fg"><label>API Key</label><input id="fb-apiKey" placeholder="AIzaSy…" value="${savedFB.apiKey||""}"></div>
+      <div class="fg"><label>Auth Domain</label><input id="fb-authDomain" placeholder="yourproject.firebaseapp.com" value="${savedFB.authDomain||""}"></div>
+      <div class="fg"><label>Database URL</label><input id="fb-databaseURL" placeholder="https://yourproject-default-rtdb.firebaseio.com" value="${savedFB.databaseURL||""}"></div>
+      <div class="fg"><label>Project ID</label><input id="fb-projectId" placeholder="yourproject-id" value="${savedFB.projectId||""}"></div>
+      <div class="fg"><label>Sender ID</label><input id="fb-messagingSenderId" placeholder="123456789" value="${savedFB.messagingSenderId||""}"></div>
+      <div class="fg"><label>App ID</label><input id="fb-appId" placeholder="1:123456:web:abc123" value="${savedFB.appId||""}"></div>
+      <div style="display:flex;gap:7px">
+        <button class="btn bp" style="flex:1;font-size:11px" onclick="saveFBConfig()">💾 Save & Connect</button>
+        ${fbOK?`<button class="btn bbad" style="font-size:11px;padding:8px 12px" onclick="clearFBConfig()">🗑 Clear</button>`:""}
+      </div>
+      <div class="info-box" style="margin-top:9px;border-left-color:var(--warn)">
+        ⚠️ After saving, <strong>reload the page</strong> for Firebase to connect with the new config.
+      </div>
+    </div>
+
+    <!-- ── COURT GPS ── -->
     <div class="card">
       <div style="font-weight:700;font-size:14px;margin-bottom:10px">📍 Court GPS Coordinates</div>
       ${arr(courts).map(c=>`
         <div style="padding:8px 0;border-bottom:1px solid var(--sand)">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <div style="font-weight:700;font-size:13px">${c.name} <span class="badge ${c.active?"b-ok":"b-warn"}">${c.active?"Active":"Inactive"}</span></div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:6px">${c.name}
+            <span class="badge ${c.active?"b-ok":"b-warn"}" style="margin-left:4px">${c.active?"Active":"Inactive"}</span>
           </div>
-          <div class="g2" style="margin-bottom:6px">
-            <div class="fg" style="margin-bottom:0"><label>Latitude</label><input id="lat-${c.id}" type="number" step="0.0001" value="${c.lat||""}" placeholder="e.g. 13.0827"></div>
-            <div class="fg" style="margin-bottom:0"><label>Longitude</label><input id="lng-${c.id}" type="number" step="0.0001" value="${c.lng||""}" placeholder="e.g. 80.2707"></div>
+          <div class="g2" style="margin-bottom:5px">
+            <div class="fg" style="margin-bottom:0"><label>Latitude</label>
+              <input id="lat-${c.id}" type="number" step="0.0001" value="${c.lat||""}" placeholder="13.0827"></div>
+            <div class="fg" style="margin-bottom:0"><label>Longitude</label>
+              <input id="lng-${c.id}" type="number" step="0.0001" value="${c.lng||""}" placeholder="80.2707"></div>
           </div>
-          <div class="fg" style="margin-bottom:6px"><label>Location Name</label><input id="loc-${c.id}" value="${c.locationName||""}" placeholder="e.g. Chennai, India"></div>
-          <button class="btn bp" style="width:100%;font-size:11px" onclick="saveCoords('${c.id}')">💾 Save Coordinates</button>
+          <div class="fg" style="margin-bottom:6px"><label>Location Name</label>
+            <input id="loc-${c.id}" value="${c.locationName||""}" placeholder="e.g. Chennai, India"></div>
+          <button class="btn bp" style="width:100%;font-size:11px" onclick="saveCoords('${c.id}')">💾 Save + Fetch Weather</button>
         </div>`).join("")}
-      <div class="info-box" style="margin-top:10px">📌 Find coordinates on <strong>maps.google.com</strong> — right-click any location → the first numbers shown are lat, lng. Open-Meteo provides free weather for any coordinates worldwide.</div>
+      <div class="info-box" style="margin-top:9px">
+        📌 Google Maps → right-click any spot → first two numbers = lat, lng.
+      </div>
     </div>
 
-    <!-- Weather explanation -->
+    <!-- ── DELETE & RESET ── -->
+    <div class="card" style="border:1.5px solid #FFCCCC">
+      <div style="font-weight:700;font-size:14px;color:var(--bad);margin-bottom:4px">🗑 Delete & Reset Data</div>
+      <div style="font-size:12px;color:var(--tl);margin-bottom:12px">Delete specific records or reset all data to the built-in seed values. These actions also delete from Firebase.</div>
+
+      <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tm)">Delete by category</div>
+      <div class="g2" style="margin-bottom:11px">
+        <button class="btn bbad" style="font-size:11px" onclick="confirmDelete('visits')">🗑 All Visits<br><small style="font-weight:400">${arr(visits).length} records</small></button>
+        <button class="btn bbad" style="font-size:11px" onclick="confirmDelete('waterLogs')">🗑 Watering Logs<br><small style="font-weight:400">${arr(waterLogs).length} records</small></button>
+        <button class="btn bbad" style="font-size:11px" onclick="confirmDelete('balls')">🗑 Ball Sets<br><small style="font-weight:400">${arr(balls).length} records</small></button>
+        <button class="btn bbad" style="font-size:11px" onclick="confirmDelete('payments')">🗑 Payments<br><small style="font-weight:400">${arr(payments).length} records</small></button>
+        <button class="btn bbad" style="font-size:11px" onclick="confirmDelete('maintenance')">🗑 Tasks<br><small style="font-weight:400">${arr(maintenance).length} records</small></button>
+        <button class="btn bbad" style="font-size:11px" onclick="confirmDelete('members')">🗑 Members<br><small style="font-weight:400">${arr(members).length} records</small></button>
+      </div>
+
+      <div style="height:1px;background:var(--sand);margin-bottom:11px"></div>
+      <div style="font-weight:700;font-size:12px;margin-bottom:8px;color:var(--tm)">Full reset</div>
+      <button class="btn bbad" style="width:100%;font-size:12px;padding:11px;margin-bottom:7px" onclick="confirmReset('seed')">
+        🔄 Reset All Data to Demo Seed<br><small style="font-weight:400;opacity:.8">Replaces everything with the built-in sample data</small>
+      </button>
+      <button class="btn bbad" style="width:100%;font-size:12px;padding:11px;background:#4a0a0a;color:#fff" onclick="confirmReset('wipe')">
+        ☠️ Wipe All Data (empty slate)<br><small style="font-weight:400;opacity:.8">Deletes every record — courts, members, balls, visits, payments, tasks</small>
+      </button>
+    </div>
+
+    <!-- ── WEATHER INFO ── -->
     <div class="card">
-      <div style="font-weight:700;font-size:14px;margin-bottom:10px">🌦 Weather & Ball Health</div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:9px">🌦 How Weather Works</div>
       <div style="font-size:12px;color:var(--tm);line-height:1.8">
-        <div style="margin-bottom:7px"><strong>Open-Meteo</strong> provides free, no-key-required weather via GPS coordinates. Each "🌐 Live Weather" fetch retrieves all 5 conditions simultaneously.</div>
-        <div style="margin-bottom:7px"><strong>Precipitation (mm)</strong> has the heaviest impact — even 1mm of rain significantly shortens ball life as felt absorbs moisture.</div>
-        <div style="margin-bottom:7px"><strong>Solar Radiation (W/m²)</strong> measures UV and heat intensity. Above 800 W/m² (direct midday sun), rubber degrades faster and felt bleaches.</div>
-        <div><strong>Climate Zone</strong> is auto-derived from the fetched temperature and humidity — no manual input needed.</div>
+        <b>Open-Meteo</b> (free, no API key) fetches 5 live conditions using court GPS coordinates:<br>
+        🌡 Temperature · 💧 Humidity · 🌧 Precipitation · 💨 Wind speed/direction · ☀️ Solar radiation<br><br>
+        <b>Precipitation</b> has the heaviest impact — even 1mm shortens ball life significantly.<br>
+        <b>Solar radiation</b> above 800 W/m² bleaches felt and degrades rubber faster.<br>
+        <b>Climate zone</b> is auto-derived from temperature + humidity.
       </div>
     </div>`;
+}
+
+// ── Key save/clear helpers ──────────────────────────────
+function saveAIKey(){
+  const key = document.getElementById("set-ai-key").value.trim();
+  if(!key){ toast("⚠️ Enter your Anthropic API key"); return; }
+  ANTHROPIC_KEY = key;
+  localStorage.setItem("ccm_ai_key", key);
+  toast("✅ AI key saved! AI Advisor is now active.");
+  aiCache = {};
+  render();
+}
+function clearAIKey(){
+  if(!confirm("Remove Anthropic API key?")) return;
+  ANTHROPIC_KEY = "YOUR_ANTHROPIC_API_KEY";
+  localStorage.removeItem("ccm_ai_key");
+  aiCache = {};
+  toast("🗑 AI key cleared");
+  render();
+}
+function saveFBConfig(){
+  const cfg = {
+    apiKey:            document.getElementById("fb-apiKey").value.trim(),
+    authDomain:        document.getElementById("fb-authDomain").value.trim(),
+    databaseURL:       document.getElementById("fb-databaseURL").value.trim(),
+    projectId:         document.getElementById("fb-projectId").value.trim(),
+    messagingSenderId: document.getElementById("fb-messagingSenderId").value.trim(),
+    appId:             document.getElementById("fb-appId").value.trim(),
+  };
+  if(!cfg.apiKey){ toast("⚠️ API Key is required"); return; }
+  if(!cfg.databaseURL){ toast("⚠️ Database URL is required"); return; }
+  localStorage.setItem("ccm_fb_config", JSON.stringify(cfg));
+  toast("✅ Firebase config saved! Reloading in 2s…");
+  setTimeout(()=>location.reload(), 2000);
+}
+function clearFBConfig(){
+  if(!confirm("Remove Firebase config? Sync will stop.")) return;
+  localStorage.removeItem("ccm_fb_config");
+  toast("🗑 Firebase config cleared. Reloading…");
+  setTimeout(()=>location.reload(), 1500);
+}
+
+// ── Delete / Reset helpers ──────────────────────────────
+function confirmDelete(category){
+  const labels={visits:"all visit logs",waterLogs:"all watering logs",balls:"all ball sets",
+    payments:"all payments",maintenance:"all maintenance tasks",members:"all members"};
+  if(!confirm(`Delete ${labels[category]||category}?\n\nThis also removes them from Firebase and cannot be undone.`)) return;
+  deleteCategory(category);
+}
+function deleteCategory(cat){
+  const empties={visits:{},waterLogs:{},balls:{},payments:{},maintenance:{},members:{}};
+  if(cat==="visits")      { visits={}; }
+  if(cat==="waterLogs")   { waterLogs={}; }
+  if(cat==="balls")       { balls={}; aiCache={}; }
+  if(cat==="payments")    { payments={}; }
+  if(cat==="maintenance") { maintenance={}; }
+  if(cat==="members")     { members={}; }
+  if(fbDB) fbDB.ref("club/"+cat).set(null);
+  toast(`🗑 ${cat} deleted`);
+  render();
+}
+
+function confirmReset(type){
+  const msg = type==="wipe"
+    ? "⚠️ WIPE ALL DATA?\n\nEvery record (courts, members, balls, visits, payments, tasks, watering) will be permanently deleted from Firebase too.\n\nType CONFIRM to proceed:"
+    : "Reset all data to demo seed values?\n\nAll current records will be replaced with sample data.\n\nType CONFIRM to proceed:";
+  const answer = prompt(msg);
+  if(answer!=="CONFIRM"){ toast("Reset cancelled"); return; }
+  if(type==="wipe") wipeAll();
+  else resetToSeed();
+}
+
+function resetToSeed(){
+  courts=clone(SEED.courts); members=clone(SEED.members);
+  maintenance=clone(SEED.maintenance); payments=clone(SEED.payments);
+  balls=clone(SEED.balls); visits=clone(SEED.visits); waterLogs={};
+  aiCache={};
+  if(fbDB){
+    fbDB.ref("club").set({
+      courts,members,maintenance,payments,balls,visits,waterLogs:{}
+    });
+  }
+  toast("🔄 Data reset to demo seed");
+  render();
+}
+
+function wipeAll(){
+  courts={}; members={}; maintenance={}; payments={};
+  balls={}; visits={}; waterLogs={}; aiCache={};
+  if(fbDB) fbDB.ref("club").set(null);
+  toast("☠️ All data wiped");
+  render();
 }
 
 function saveCoords(id){
@@ -1257,8 +1416,9 @@ function saveCoords(id){
   if(isNaN(lat)||isNaN(lng)){toast("⚠️ Enter valid lat/lng numbers");return;}
   courts[id]={...courts[id],lat,lng,locationName:loc};
   dbUpdate(`club/courts/${id}`,{lat,lng,locationName:loc});
-  toast(`📍 ${courts[id].name} location saved!`);
+  toast(`📍 ${courts[id].name} saved — fetching weather…`);
   render();
+  fetchWeather(id);
 }
 
 // ══════════════════════════════════════════════════════
